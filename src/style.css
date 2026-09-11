@@ -253,7 +253,15 @@ body {
 
 @media (max-width: 520px) {
   .title {
-    font-size: 1rem;
+    font-size: 0.78rem;
+  }
+  .hud {
+    padding: 5px 6px;
+    gap: 4px;
+  }
+  .hint {
+    padding: 6px 8px 8px;
+    font-size: 0.7rem;
   }
   .hint span {
     display: inline-block;
