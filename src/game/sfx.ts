@@ -29,36 +29,41 @@ function out(): GainNode {
  */
 export function unlockAudio(): Promise<void> {
   const c = ac();
-  unlockChain = unlockChain.then(async () => {
-    if (c.state === 'suspended') {
-      try {
-        await c.resume();
-      } catch {
-        // ignore — next gesture will retry
+  // Never let a rejection kill the chain (that used to block all later moves gated on unlock).
+  unlockChain = unlockChain
+    .catch(() => undefined)
+    .then(async () => {
+      if (c.state === 'suspended') {
+        try {
+          await c.resume();
+        } catch {
+          // ignore — next gesture will retry
+        }
       }
-    }
-    // Warm the graph so the first real note isn't dropped on some WebKit builds.
-    if (c.state === 'running') {
-      const t = c.currentTime;
-      const g = c.createGain();
-      g.gain.value = 0.00001;
-      g.connect(out());
-      const o = c.createOscillator();
-      o.frequency.value = 40;
-      o.connect(g);
-      o.start(t);
-      o.stop(t + 0.01);
-    }
-  });
+      if (c.state === 'running') {
+        const t = c.currentTime;
+        const g = c.createGain();
+        g.gain.value = 0.00001;
+        g.connect(out());
+        const o = c.createOscillator();
+        o.frequency.value = 40;
+        o.connect(g);
+        o.start(t);
+        o.stop(t + 0.01);
+      }
+    })
+    .catch(() => undefined);
   return unlockChain;
 }
 
 function whenReady(play: (c: AudioContext, t0: number) => void): void {
-  void unlockAudio().then(() => {
-    const c = ac();
-    if (c.state !== 'running') return; // still blocked — next gesture retries via unlockAudio
-    play(c, c.currentTime);
-  });
+  void unlockAudio()
+    .then(() => {
+      const c = ac();
+      if (c.state !== 'running') return;
+      play(c, c.currentTime);
+    })
+    .catch(() => undefined);
 }
 
 function toneAt(

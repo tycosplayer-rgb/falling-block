@@ -191,26 +191,20 @@ window.addEventListener(
   { passive: false },
 );
 
-btnRestart.addEventListener('pointerdown', () => {
-  void unlockAudio();
-});
 btnRestart.addEventListener('click', () => {
-  void unlockAudio().then(() => loadLevel(levelIndex));
+  void unlockAudio();
+  loadLevel(levelIndex);
 });
 
 document.querySelectorAll<HTMLButtonElement>('[data-dir]').forEach((btn) => {
-  btn.addEventListener('pointerdown', () => {
-    void unlockAudio();
-  });
   btn.addEventListener('click', () => {
-    void unlockAudio().then(() => {
-      const dir = btn.dataset.dir as Dir;
-      tryMove(dir);
-    });
+    void unlockAudio();
+    const dir = btn.dataset.dir as Dir;
+    tryMove(dir);
   });
 });
 
-// Keep unlocking on every gesture until AudioContext is running (iOS/WebKit).
+// Unlock audio on gestures without gating gameplay on the promise.
 const unlockOnGesture = () => {
   void unlockAudio();
 };
@@ -219,7 +213,8 @@ window.addEventListener('touchstart', unlockOnGesture, { capture: true, passive:
 window.addEventListener('keydown', unlockOnGesture, { capture: true });
 
 attachControls(canvas, (dir) => {
-  void unlockAudio().then(() => tryMove(dir));
+  void unlockAudio();
+  tryMove(dir);
 });
 window.addEventListener('resize', resize);
 
