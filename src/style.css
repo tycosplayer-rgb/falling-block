@@ -201,12 +201,10 @@ body {
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
 }
 
-/* Keep glyph upright/readable while the key face stays perspective-warped */
+/* Same perspective as the key face (inherits .dpad-inner matrix; no counter-warp). */
 .dpad-btn > span {
   display: block;
-  /* inverse of matrix(0.92, 0.36, -0.58, 0.50) ≈ (1/det)*[0.50, -0.36, 0.58, 0.92] */
-  transform: matrix(0.748, -0.538, 0.867, 1.376, 0, 0) scale(0.78);
-  transform-origin: center center;
+  line-height: 1;
 }
 
 .dpad-n { left: 44px; top: 0; }
