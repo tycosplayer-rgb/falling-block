@@ -1,0 +1,18 @@
+{
+  "name": "falling-block",
+  "version": "1.0.0",
+  "private": true,
+  "description": "落井下石：翻滚方块解谜（Bloxorz-style）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "verify-levels": "tsx scripts/verify-levels.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  }
+}

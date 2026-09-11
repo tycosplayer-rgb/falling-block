@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>落井下石 · Falling Block</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="hud">
+        <div class="hud-left">
+          <h1 class="title">落井下石</h1>
+          <span id="level-label" class="badge">关卡 1</span>
+        </div>
+        <div class="hud-right">
+          <span id="moves-label" class="badge">步数 0</span>
+          <button id="btn-restart" type="button" class="btn">重新开始</button>
+        </div>
+      </header>
+      <main id="stage-wrap">
+        <canvas id="game" width="800" height="600" aria-label="游戏画布"></canvas>
+        <nav class="dpad" aria-label="方向键">
+          <button type="button" class="dpad-btn dpad-n" data-dir="N" aria-label="北">▲</button>
+          <button type="button" class="dpad-btn dpad-w" data-dir="W" aria-label="西">◀</button>
+          <button type="button" class="dpad-btn dpad-e" data-dir="E" aria-label="东">▶</button>
+          <button type="button" class="dpad-btn dpad-s" data-dir="S" aria-label="南">▼</button>
+        </nav>
+        <div id="overlay" class="overlay hidden" role="dialog" aria-live="polite">
+          <div class="overlay-card">
+            <p id="overlay-msg"></p>
+            <button id="btn-overlay" type="button" class="btn primary">继续</button>
+          </div>
+        </div>
+      </main>
+      <footer class="hint">
+        <span>滑动 / 方向键 / WASD 翻滚方块 · 直立落在目标上即可过关</span>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
