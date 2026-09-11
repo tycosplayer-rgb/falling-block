@@ -1,5 +1,6 @@
 import { boundsOf, parseCell } from './logic';
 import type { Dir, Level, Pose } from './types';
+import { VIEW_SKEW_X, VIEW_SKEW_Y, VIEW_Z_SCALE } from './view';
 
 export type AnimKind = 'idle' | 'roll' | 'fall' | 'win';
 
@@ -150,9 +151,9 @@ function faceTint(faceIndex: number, standing: boolean): string {
 
 function computeView(level: Level, width: number, height: number): ViewTransform {
   const b = boundsOf(level);
-  const skewX = 0.9;
-  const skewY = 0.5;
-  const zScale = 0.72;
+  const skewX = VIEW_SKEW_X;
+  const skewY = VIEW_SKEW_Y;
+  const zScale = VIEW_Z_SCALE;
   const pad = 52;
 
   const usableW = Math.max(100, width - pad * 2);
@@ -230,6 +231,24 @@ function drawQuad(
   ctx.stroke();
 }
 
+/** 12 edges of a cuboid as corner-index pairs. */
+const CUBE_EDGES: [number, number][] = [
+  [0, 1], [1, 3], [3, 2], [2, 0], // bottom z-min
+  [4, 5], [5, 7], [7, 6], [6, 4], // top z-max
+  [0, 4], [1, 5], [2, 6], [3, 7], // vertical
+];
+
+function faceFrontFacing(pts: { sx: number; sy: number }[]): boolean {
+  // Screen-space signed area; canvas Y grows downward so >0 means CCW on screen.
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    area += a.sx * b.sy - b.sx * a.sy;
+  }
+  return area > 1e-6;
+}
+
 function drawCuboid(
   ctx: CanvasRenderingContext2D,
   corners: Vec3[],
@@ -239,7 +258,13 @@ function drawCuboid(
   glow: boolean,
 ) {
   const projected = corners.map((c) => project(c, vt));
-  type Face = { depth: number; pts: { sx: number; sy: number }[]; color: string };
+  type Face = {
+    depth: number;
+    pts: { sx: number; sy: number }[];
+    color: string;
+    front: boolean;
+    indices: number[];
+  };
   const faces: Face[] = [];
   for (let fi = 0; fi < CUBE_FACES.length; fi++) {
     const idx = CUBE_FACES[fi];
@@ -252,6 +277,8 @@ function drawCuboid(
       depth: cx + cy - cz * 1.4,
       pts,
       color: faceTint(fi, standing),
+      front: faceFrontFacing(pts),
+      indices: idx,
     });
   }
   faces.sort((a, b) => a.depth - b.depth);
@@ -259,14 +286,61 @@ function drawCuboid(
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.lineJoin = 'round';
-  ctx.lineWidth = Math.max(1, vt.tile * 0.035);
+  ctx.lineCap = 'round';
   if (glow) {
     ctx.shadowColor = '#fde68a';
     ctx.shadowBlur = 22;
   }
+
+  // Fill only front faces — no per-face stroke (that hid shared edges).
   for (const f of faces) {
-    drawQuad(ctx, f.pts, f.color, 'rgba(60, 20, 10, 0.55)');
+    if (!f.front) continue;
+    ctx.beginPath();
+    ctx.moveTo(f.pts[0].sx, f.pts[0].sy);
+    for (let i = 1; i < f.pts.length; i++) ctx.lineTo(f.pts[i].sx, f.pts[i].sy);
+    ctx.closePath();
+    ctx.fillStyle = f.color;
+    ctx.fill();
   }
+
+  // Draw every cuboid edge once so silhouettes never drop out mid-roll.
+  const edgeVisible = new Set<string>();
+  for (const f of faces) {
+    if (!f.front) continue;
+    const ids = f.indices;
+    for (let i = 0; i < ids.length; i++) {
+      const a = ids[i];
+      const b = ids[(i + 1) % ids.length];
+      edgeVisible.add(a < b ? `${a}-${b}` : `${b}-${a}`);
+    }
+  }
+
+  // Stroke every geometric edge once (after fills) so no prism edge disappears
+  // when a face is edge-on or depth-sorted oddly during a roll.
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(40, 14, 8, 0.9)';
+  ctx.lineWidth = Math.max(1.35, vt.tile * 0.05);
+  ctx.beginPath();
+  for (const [a, b] of CUBE_EDGES) {
+    const pa = projected[a];
+    const pb = projected[b];
+    ctx.moveTo(pa.sx, pa.sy);
+    ctx.lineTo(pb.sx, pb.sy);
+  }
+  ctx.stroke();
+  // Soft outer silhouette for edges on front faces (extra clarity)
+  ctx.strokeStyle = 'rgba(255, 220, 180, 0.22)';
+  ctx.lineWidth = Math.max(0.8, vt.tile * 0.025);
+  ctx.beginPath();
+  for (const [a, b] of CUBE_EDGES) {
+    const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+    if (!edgeVisible.has(key)) continue;
+    const pa = projected[a];
+    const pb = projected[b];
+    ctx.moveTo(pa.sx, pa.sy);
+    ctx.lineTo(pb.sx, pb.sy);
+  }
+  ctx.stroke();
   ctx.restore();
 }
 

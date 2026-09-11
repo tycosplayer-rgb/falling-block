@@ -1,4 +1,5 @@
 import type { Dir } from './types';
+import { SCREEN_DIR_DELTA, screenDeltaToWorldDir } from './view';
 
 const SWIPE_THRESHOLD = 36; // px — ignore small jitters
 const KEY_COOLDOWN_MS = 140;
@@ -7,6 +8,8 @@ export type MoveHandler = (dir: Dir) => void;
 
 /**
  * Touch/mouse swipe + keyboard (arrows / WASD).
+ * Screen deltas are converted through the same isometric inverse as the map,
+ * so "up on screen" matches visual map up, not raw world +N.
  * Page scroll/zoom are disabled; swipes only move the block.
  */
 export function attachControls(
@@ -33,11 +36,7 @@ export function attachControls(
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
     if (Math.max(absX, absY) < SWIPE_THRESHOLD) return;
-    if (absX > absY) {
-      onMove(dx > 0 ? 'E' : 'W');
-    } else {
-      onMove(dy > 0 ? 'S' : 'N');
-    }
+    onMove(screenDeltaToWorldDir(dx, dy));
   };
 
   const onPointerDown = (e: PointerEvent) => {
@@ -58,27 +57,28 @@ export function attachControls(
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
-    const map: Record<string, Dir> = {
-      ArrowUp: 'N',
-      ArrowDown: 'S',
-      ArrowLeft: 'W',
-      ArrowRight: 'E',
-      w: 'N',
-      W: 'N',
-      s: 'S',
-      S: 'S',
-      a: 'W',
-      A: 'W',
-      d: 'E',
-      D: 'E',
+    const screenKey: Record<string, keyof typeof SCREEN_DIR_DELTA> = {
+      ArrowUp: 'up',
+      ArrowDown: 'down',
+      ArrowLeft: 'left',
+      ArrowRight: 'right',
+      w: 'up',
+      W: 'up',
+      s: 'down',
+      S: 'down',
+      a: 'left',
+      A: 'left',
+      d: 'right',
+      D: 'right',
     };
-    const dir = map[e.key];
-    if (!dir) return;
+    const screen = screenKey[e.key];
+    if (!screen) return;
     e.preventDefault();
     const now = performance.now();
     if (now - lastKeyAt < KEY_COOLDOWN_MS) return;
     lastKeyAt = now;
-    onMove(dir);
+    const { dx, dy } = SCREEN_DIR_DELTA[screen];
+    onMove(screenDeltaToWorldDir(dx, dy));
   };
 
   const prevent = (e: Event) => e.preventDefault();
@@ -87,7 +87,6 @@ export function attachControls(
     if (e.ctrlKey || e.metaKey) e.preventDefault();
   };
 
-  // Block page scrolling; swipe is handled via pointer up delta instead.
   const preventTouchMove = (e: TouchEvent) => {
     e.preventDefault();
   };
