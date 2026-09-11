@@ -157,11 +157,12 @@ body {
 }
 
 .dpad {
+  /* Buttons sit on the same isometric axes as the map tiles. */
   position: absolute;
-  right: 14px;
-  bottom: 14px;
-  width: 132px;
-  height: 132px;
+  right: 10px;
+  bottom: 10px;
+  width: 168px;
+  height: 168px;
   z-index: 3;
   touch-action: manipulation;
   pointer-events: none;
@@ -170,22 +171,31 @@ body {
 .dpad-btn {
   pointer-events: auto;
   position: absolute;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
   border: 1px solid #3d5f9e;
-  background: rgba(30, 51, 92, 0.72);
+  background: rgba(30, 51, 92, 0.78);
   color: #e8eefc;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
   padding: 0;
   cursor: pointer;
+  transform: translate(-50%, -50%);
 }
 
-.dpad-n { left: 45px; top: 0; }
-.dpad-s { left: 45px; bottom: 0; }
-.dpad-w { left: 0; top: 45px; }
-.dpad-e { right: 0; top: 45px; }
+/* N up-right, W up-left, E down-right, S down-left (matches map projection) */
+.dpad-n { transform: translate(-50%, -50%) translate(47px, -26px); }
+.dpad-w { transform: translate(-50%, -50%) translate(-47px, -26px); }
+.dpad-e { transform: translate(-50%, -50%) translate(47px, 26px); }
+.dpad-s { transform: translate(-50%, -50%) translate(-47px, 26px); }
+
+.dpad-btn:active {
+  background: rgba(59, 130, 246, 0.85);
+}
+
 
 
 .hint {

@@ -25,11 +25,11 @@
       </header>
       <main id="stage-wrap">
         <canvas id="game" width="800" height="600" aria-label="游戏画布"></canvas>
-        <nav class="dpad" aria-label="方向键">
-          <button type="button" class="dpad-btn dpad-n" data-screen-dir="up" aria-label="北">▲</button>
-          <button type="button" class="dpad-btn dpad-w" data-screen-dir="left" aria-label="西">◀</button>
-          <button type="button" class="dpad-btn dpad-e" data-screen-dir="right" aria-label="东">▶</button>
-          <button type="button" class="dpad-btn dpad-s" data-screen-dir="down" aria-label="南">▼</button>
+        <nav class="dpad" aria-label="方向键（与地图等距轴对齐）">
+          <button type="button" class="dpad-btn dpad-n" data-dir="N" aria-label="北（画面右上）">↗</button>
+          <button type="button" class="dpad-btn dpad-w" data-dir="W" aria-label="西（画面左上）">↖</button>
+          <button type="button" class="dpad-btn dpad-e" data-dir="E" aria-label="东（画面右下）">↘</button>
+          <button type="button" class="dpad-btn dpad-s" data-dir="S" aria-label="南（画面左下）">↙</button>
         </nav>
         <div id="overlay" class="overlay hidden" role="dialog" aria-live="polite">
           <div class="overlay-card">
@@ -39,7 +39,7 @@
         </div>
       </main>
       <footer class="hint">
-        <span>滑动 / 方向键 / WASD 翻滚方块 · 直立落在目标上即可过关</span>
+        <span>滑动与方向键均按地图等距视角换算 · 直立落在目标上即可过关</span>
       </footer>
     </div>
     <script type="module" src="/src/main.ts"></script>

@@ -1,36 +1,40 @@
 /** Shared isometric view constants — keep input & render in sync. */
+import type { Dir } from './types';
+
 export const VIEW_SKEW_X = 0.9;
 export const VIEW_SKEW_Y = 0.5;
 export const VIEW_Z_SCALE = 0.72;
 
 /**
- * Map a screen-space direction (e.g. swipe / arrow) into a world roll Dir,
- * using the inverse of the same isometric projection as the map.
+ * Screen-space vectors of +1 step on each world axis, under the same
+ * projection as the map: sx ~ (x - y)*skewX, sy ~ (x + y)*skewY.
  *
- * Screen: sx ∝ (x - y)*skewX,  sy ∝ (x + y)*skewY
- * Inverse: x ∝ u+v,  y ∝ v-u  where u=sx/skewX, v=sy/skewY
+ *   +X (E) -> (+skewX, +skewY)  screen down-right
+ *   -X (W) -> (-skewX, -skewY)  screen up-left
+ *   +Y (S) -> (-skewX, +skewY)  screen down-left
+ *   -Y (N) -> (+skewX, -skewY)  screen up-right
  */
-export function screenDeltaToWorldDir(
-  dx: number,
-  dy: number,
-): 'N' | 'S' | 'E' | 'W' {
-  const u = dx / VIEW_SKEW_X;
-  const v = dy / VIEW_SKEW_Y;
-  const worldDx = (u + v) / 2;
-  const worldDy = (v - u) / 2;
-  if (Math.abs(worldDx) >= Math.abs(worldDy)) {
-    return worldDx >= 0 ? 'E' : 'W';
-  }
-  return worldDy >= 0 ? 'S' : 'N';
-}
-
-/** Unit screen vectors for D-pad / arrow keys (screen up/down/left/right). */
-export const SCREEN_DIR_DELTA: Record<
-  'up' | 'down' | 'left' | 'right',
-  { dx: number; dy: number }
-> = {
-  up: { dx: 0, dy: -1 },
-  down: { dx: 0, dy: 1 },
-  left: { dx: -1, dy: 0 },
-  right: { dx: 1, dy: 0 },
+export const WORLD_DIR_SCREEN: Record<Dir, { dx: number; dy: number }> = {
+  E: { dx: VIEW_SKEW_X, dy: VIEW_SKEW_Y },
+  W: { dx: -VIEW_SKEW_X, dy: -VIEW_SKEW_Y },
+  S: { dx: -VIEW_SKEW_X, dy: VIEW_SKEW_Y },
+  N: { dx: VIEW_SKEW_X, dy: -VIEW_SKEW_Y },
 };
+
+/**
+ * Map a screen-space swipe / key delta to the nearest world roll Dir,
+ * by matching against the projected world axes (same transform as the map).
+ */
+export function screenDeltaToWorldDir(dx: number, dy: number): Dir {
+  let best: Dir = 'E';
+  let bestDot = -Infinity;
+  for (const dir of ['N', 'S', 'E', 'W'] as Dir[]) {
+    const a = WORLD_DIR_SCREEN[dir];
+    const dot = dx * a.dx + dy * a.dy;
+    if (dot > bestDot) {
+      bestDot = dot;
+      best = dir;
+    }
+  }
+  return best;
+}

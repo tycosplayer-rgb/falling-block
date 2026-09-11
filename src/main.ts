@@ -3,7 +3,6 @@ import { clonePose, isSupported, isWin, roll, tileSet } from './game/logic';
 import { LEVELS } from './game/levels';
 import { drawFrame, type AnimState } from './game/render';
 import type { Dir, Level, Pose } from './game/types';
-import { SCREEN_DIR_DELTA, screenDeltaToWorldDir } from './game/view';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -180,12 +179,10 @@ btnRestart.addEventListener('click', () => {
   loadLevel(levelIndex);
 });
 
-document.querySelectorAll<HTMLButtonElement>('[data-screen-dir]').forEach((btn) => {
+document.querySelectorAll<HTMLButtonElement>('[data-dir]').forEach((btn) => {
   btn.addEventListener('click', () => {
-    const screen = btn.dataset.screenDir as keyof typeof SCREEN_DIR_DELTA;
-    const delta = SCREEN_DIR_DELTA[screen];
-    if (!delta) return;
-    tryMove(screenDeltaToWorldDir(delta.dx, delta.dy));
+    const dir = btn.dataset.dir as Dir;
+    tryMove(dir);
   });
 });
 

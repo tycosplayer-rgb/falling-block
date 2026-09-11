@@ -1,16 +1,14 @@
 import type { Dir } from './types';
-import { SCREEN_DIR_DELTA, screenDeltaToWorldDir } from './view';
+import { screenDeltaToWorldDir } from './view';
 
-const SWIPE_THRESHOLD = 36; // px — ignore small jitters
+const SWIPE_THRESHOLD = 36;
 const KEY_COOLDOWN_MS = 140;
 
 export type MoveHandler = (dir: Dir) => void;
 
 /**
- * Touch/mouse swipe + keyboard (arrows / WASD).
- * Screen deltas are converted through the same isometric inverse as the map,
- * so "up on screen" matches visual map up, not raw world +N.
- * Page scroll/zoom are disabled; swipes only move the block.
+ * Swipe + keyboard. Screen deltas are matched to projected world axes
+ * (same isometric transform as the map). D-pad is wired separately in main.
  */
 export function attachControls(
   target: HTMLElement,
@@ -33,9 +31,7 @@ export function attachControls(
     tracking = false;
     const dx = x - startX;
     const dy = y - startY;
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-    if (Math.max(absX, absY) < SWIPE_THRESHOLD) return;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
     onMove(screenDeltaToWorldDir(dx, dy));
   };
 
@@ -56,41 +52,36 @@ export function attachControls(
     tracking = false;
   };
 
+  const keyScreenDelta: Record<string, { dx: number; dy: number }> = {
+    ArrowUp: { dx: 0, dy: -1 },
+    ArrowDown: { dx: 0, dy: 1 },
+    ArrowLeft: { dx: -1, dy: 0 },
+    ArrowRight: { dx: 1, dy: 0 },
+    w: { dx: 0, dy: -1 },
+    W: { dx: 0, dy: -1 },
+    s: { dx: 0, dy: 1 },
+    S: { dx: 0, dy: 1 },
+    a: { dx: -1, dy: 0 },
+    A: { dx: -1, dy: 0 },
+    d: { dx: 1, dy: 0 },
+    D: { dx: 1, dy: 0 },
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
-    const screenKey: Record<string, keyof typeof SCREEN_DIR_DELTA> = {
-      ArrowUp: 'up',
-      ArrowDown: 'down',
-      ArrowLeft: 'left',
-      ArrowRight: 'right',
-      w: 'up',
-      W: 'up',
-      s: 'down',
-      S: 'down',
-      a: 'left',
-      A: 'left',
-      d: 'right',
-      D: 'right',
-    };
-    const screen = screenKey[e.key];
-    if (!screen) return;
+    const delta = keyScreenDelta[e.key];
+    if (!delta) return;
     e.preventDefault();
     const now = performance.now();
     if (now - lastKeyAt < KEY_COOLDOWN_MS) return;
     lastKeyAt = now;
-    const { dx, dy } = SCREEN_DIR_DELTA[screen];
-    onMove(screenDeltaToWorldDir(dx, dy));
+    onMove(screenDeltaToWorldDir(delta.dx, delta.dy));
   };
 
   const prevent = (e: Event) => e.preventDefault();
-
   const preventWheelZoom = (e: WheelEvent) => {
     if (e.ctrlKey || e.metaKey) e.preventDefault();
   };
-
-  const preventTouchMove = (e: TouchEvent) => {
-    e.preventDefault();
-  };
-
+  const preventTouchMove = (e: TouchEvent) => e.preventDefault();
   const preventDoubleTapZoom = (e: TouchEvent) => {
     const now = Date.now();
     if (now - lastTouchEnd < 300) e.preventDefault();
