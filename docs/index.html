@@ -9,8 +9,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <title>落井下石 · Falling Block</title>
-    <script type="module" crossorigin src="./assets/index-62qKkh-0.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CHPtf48p.css">
+    <script type="module" crossorigin src="./assets/index-B0w_UAp_.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Ccv4vH4r.css">
   </head>
   <body>
     <div id="app">
@@ -21,6 +21,7 @@
         </div>
         <div class="hud-right">
           <span id="moves-label" class="badge">步数 0</span>
+          <button id="btn-levels" type="button" class="btn">选关</button>
           <button id="btn-restart" type="button" class="btn">重新开始</button>
         </div>
       </header>
@@ -38,6 +39,15 @@
           <div class="overlay-card">
             <p id="overlay-msg"></p>
             <button id="btn-overlay" type="button" class="btn primary">继续</button>
+          </div>
+        </div>
+        <div id="level-select" class="overlay hidden" role="dialog" aria-label="选择关卡">
+          <div class="overlay-card level-select-card">
+            <div class="level-select-head">
+              <h2>选择关卡</h2>
+              <button id="btn-levels-close" type="button" class="btn">关闭</button>
+            </div>
+            <div id="level-grid" class="level-grid"></div>
           </div>
         </div>
       </main>

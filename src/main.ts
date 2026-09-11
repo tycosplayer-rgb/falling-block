@@ -13,7 +13,12 @@ import {
   touchesBounce,
 } from './game/logic';
 import { LEVELS } from './game/levels';
-import { loadLastLevelIndex, saveLastLevelIndex } from './game/progress';
+import {
+  loadLastLevelIndex,
+  loadMaxUnlocked,
+  saveLastLevelIndex,
+  unlockAfterClear,
+} from './game/progress';
 import { drawFrame, type AnimState } from './game/render';
 import {
   playBounce,
@@ -30,11 +35,16 @@ const ctx = canvas.getContext('2d')!;
 const levelLabel = document.getElementById('level-label')!;
 const movesLabel = document.getElementById('moves-label')!;
 const btnRestart = document.getElementById('btn-restart') as HTMLButtonElement;
+const btnLevels = document.getElementById('btn-levels') as HTMLButtonElement;
+const levelSelect = document.getElementById('level-select')!;
+const levelGrid = document.getElementById('level-grid')!;
+const btnLevelsClose = document.getElementById('btn-levels-close') as HTMLButtonElement;
 const overlay = document.getElementById('overlay')!;
 const overlayMsg = document.getElementById('overlay-msg')!;
 const btnOverlay = document.getElementById('btn-overlay') as HTMLButtonElement;
 
 let levelIndex = 0;
+let maxUnlocked = 0;
 let level: Level = LEVELS[0];
 let pose: Pose = clonePose(level.start);
 let moves = 0;
@@ -119,7 +129,7 @@ function startAnim(
 }
 
 function tryMove(dir: Dir) {
-  if (busy || !overlay.classList.contains('hidden')) return;
+  if (busy || !overlay.classList.contains('hidden') || isLevelSelectOpen()) return;
 
   const result = applyMove(level, pose, dir);
   const mid = roll(pose, dir); // landing pose before bounce (for animation)
@@ -176,10 +186,10 @@ function tryMove(dir: Dir) {
 function finishAfterLand(dir: Dir) {
   if (isWin(pose, level.target)) {
     startAnim('win', pose, pose, dir, 520, () => {
+      maxUnlocked = unlockAfterClear(levelIndex, LEVELS.length);
       if (levelIndex >= LEVELS.length - 1) {
         showOverlay(
-          `通关！全部 ${LEVELS.length} 关完成
-本关步数 ${moves}`,
+          `通关！全部 ${LEVELS.length} 关完成\n本关步数 ${moves}`,
           '再玩一次',
           () => loadLevel(0),
         );
@@ -193,6 +203,41 @@ function finishAfterLand(dir: Dir) {
     busy = false;
     anim = null;
   }
+}
+
+
+function isLevelSelectOpen() {
+  return !levelSelect.classList.contains('hidden');
+}
+
+function closeLevelSelect() {
+  levelSelect.classList.add('hidden');
+}
+
+function openLevelSelect() {
+  hideOverlay();
+  renderLevelGrid();
+  levelSelect.classList.remove('hidden');
+}
+
+function renderLevelGrid() {
+  maxUnlocked = loadMaxUnlocked(LEVELS.length);
+  levelGrid.innerHTML = '';
+  LEVELS.forEach((lv, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'level-pick' + (i === levelIndex ? ' current' : '');
+    btn.disabled = i > maxUnlocked;
+    btn.innerHTML = `<span class="lvl-num">${i + 1}</span><span class="lvl-name">${
+      i > maxUnlocked ? '未解锁' : lv.name
+    }</span>`;
+    btn.addEventListener('click', () => {
+      if (i > maxUnlocked) return;
+      closeLevelSelect();
+      loadLevel(i);
+    });
+    levelGrid.appendChild(btn);
+  });
 }
 
 
@@ -239,6 +284,18 @@ window.addEventListener(
   { passive: false },
 );
 
+
+btnLevels.addEventListener('click', () => {
+  void unlockAudio();
+  openLevelSelect();
+});
+btnLevelsClose.addEventListener('click', () => {
+  closeLevelSelect();
+});
+levelSelect.addEventListener('click', (e) => {
+  if (e.target === levelSelect) closeLevelSelect();
+});
+
 btnRestart.addEventListener('click', () => {
   void unlockAudio();
   loadLevel(levelIndex);
@@ -266,6 +323,10 @@ attachControls(canvas, (dir) => {
 });
 window.addEventListener('resize', resize);
 
+maxUnlocked = loadMaxUnlocked(LEVELS.length);
 loadLevel(loadLastLevelIndex(LEVELS.length));
+// Visiting a level keeps it unlocked for select.
+maxUnlocked = Math.max(maxUnlocked, levelIndex);
+unlockAfterClear(Math.max(0, maxUnlocked - 1), LEVELS.length);
 resize();
 requestAnimationFrame(tick);

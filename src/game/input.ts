@@ -87,9 +87,12 @@ export function attachControls(
   const preventTouchMove = (e: TouchEvent) => e.preventDefault();
   const preventDoubleTapZoom = (e: TouchEvent) => {
     const now = Date.now();
-    if (now - lastTouchEnd < 300) e.preventDefault();
+    // Always block the second tap of a double-tap (iOS Safari zoom).
+    if (now - lastTouchEnd < 450) e.preventDefault();
     lastTouchEnd = now;
   };
+
+  const preventDblClick = (e: Event) => e.preventDefault();
 
   target.addEventListener('pointerdown', onPointerDown);
   target.addEventListener('pointerup', onPointerUp);
@@ -101,6 +104,7 @@ export function attachControls(
   document.addEventListener('wheel', preventWheelZoom, { passive: false });
   document.addEventListener('touchmove', preventTouchMove, { passive: false });
   document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
+  document.addEventListener('dblclick', preventDblClick, { passive: false });
 
   return () => {
     target.removeEventListener('pointerdown', onPointerDown);
@@ -113,5 +117,6 @@ export function attachControls(
     document.removeEventListener('wheel', preventWheelZoom);
     document.removeEventListener('touchmove', preventTouchMove);
     document.removeEventListener('touchend', preventDoubleTapZoom);
+    document.removeEventListener('dblclick', preventDblClick);
   };
 }
