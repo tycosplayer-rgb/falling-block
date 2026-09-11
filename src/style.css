@@ -157,44 +157,67 @@ body {
 }
 
 .dpad {
-  /* Buttons sit on the same isometric axes as the map tiles. */
   position: absolute;
-  right: 10px;
-  bottom: 10px;
-  width: 168px;
-  height: 168px;
+  right: 6px;
+  bottom: 6px;
+  width: 180px;
+  height: 180px;
   z-index: 3;
   touch-action: manipulation;
   pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Orthogonal first-version cross, then warped by the same linear map as tiles:
+   sx = x*0.92 + y*(-0.58),  sy = x*0.36 + y*0.50
+   CSS matrix(a,b,c,d,e,f): x'=a*x+c*y+e, y'=b*x+d*y+f */
+.dpad-inner {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  pointer-events: none;
+  transform: matrix(0.92, 0.36, -0.58, 0.50, 0, 0) scale(1.28);
+  transform-origin: center center;
 }
 
 .dpad-btn {
   pointer-events: auto;
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
   border: 1px solid #3d5f9e;
-  background: rgba(30, 51, 92, 0.78);
+  background: rgba(30, 51, 92, 0.82);
   color: #e8eefc;
-  font-size: 18px;
+  font-size: 15px;
   line-height: 1;
   padding: 0;
   cursor: pointer;
-  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
 }
 
-/* N up-right, W up-left, E down-right, S down-left (matches map projection) */
-.dpad-n { transform: translate(-50%, -50%) translate(39px, -34px); }
-.dpad-w { transform: translate(-50%, -50%) translate(-48px, -19px); }
-.dpad-e { transform: translate(-50%, -50%) translate(48px, 19px); }
-.dpad-s { transform: translate(-50%, -50%) translate(-39px, 34px); }
+/* Keep glyph upright/readable while the key face stays perspective-warped */
+.dpad-btn > span {
+  display: block;
+  /* inverse of matrix(0.92, 0.36, -0.58, 0.50) ≈ (1/det)*[0.50, -0.36, 0.58, 0.92] */
+  transform: matrix(0.748, -0.538, 0.867, 1.376, 0, 0) scale(0.78);
+  transform-origin: center center;
+}
+
+.dpad-n { left: 44px; top: 0; }
+.dpad-s { left: 44px; bottom: 0; }
+.dpad-w { left: 0; top: 44px; }
+.dpad-e { right: 0; top: 44px; }
 
 .dpad-btn:active {
-  background: rgba(59, 130, 246, 0.85);
+  background: rgba(59, 130, 246, 0.9);
 }
+
 
 
 
