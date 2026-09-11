@@ -32,10 +32,9 @@ import type { Dir, Level, Pose } from './game/types';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
-const levelLabel = document.getElementById('level-label')!;
+const levelLabel = document.getElementById('level-label') as HTMLButtonElement;
 const movesLabel = document.getElementById('moves-label')!;
 const btnRestart = document.getElementById('btn-restart') as HTMLButtonElement;
-const btnLevels = document.getElementById('btn-levels') as HTMLButtonElement;
 const levelSelect = document.getElementById('level-select')!;
 const levelGrid = document.getElementById('level-grid')!;
 const btnLevelsClose = document.getElementById('btn-levels-close') as HTMLButtonElement;
@@ -285,7 +284,7 @@ window.addEventListener(
 );
 
 
-btnLevels.addEventListener('click', () => {
+levelLabel.addEventListener('click', () => {
   void unlockAudio();
   openLevelSelect();
 });
