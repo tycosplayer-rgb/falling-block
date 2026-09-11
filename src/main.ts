@@ -1,9 +1,22 @@
 import { attachControls } from './game/input';
-import { clonePose, isSupported, isWin, roll, tileSet } from './game/logic';
+import {
+  applyMove,
+  bounceSet,
+  cellKey,
+  clonePose,
+  isSupported,
+  isWin,
+  opposite,
+  roll,
+  softSet,
+  tileSet,
+  touchesBounce,
+} from './game/logic';
 import { LEVELS } from './game/levels';
 import { loadLastLevelIndex, saveLastLevelIndex } from './game/progress';
 import { drawFrame, type AnimState } from './game/render';
 import {
+  playBounce,
   playFall,
   playRoll,
   playVictory,
@@ -25,7 +38,6 @@ let levelIndex = 0;
 let level: Level = LEVELS[0];
 let pose: Pose = clonePose(level.start);
 let moves = 0;
-let tiles = tileSet(level);
 let busy = false;
 let anim: AnimState | null = null;
 let animStarted = 0;
@@ -53,7 +65,6 @@ function loadLevel(i: number) {
   levelIndex = Math.max(0, Math.min(LEVELS.length - 1, i));
   level = LEVELS[levelIndex];
   pose = clonePose(level.start);
-  tiles = tileSet(level);
   moves = 0;
   busy = false;
   anim = null;
@@ -110,43 +121,80 @@ function startAnim(
 function tryMove(dir: Dir) {
   if (busy || !overlay.classList.contains('hidden')) return;
 
-  const next = roll(pose, dir);
-  const supported = isSupported(next, tiles);
+  const result = applyMove(level, pose, dir);
+  const mid = roll(pose, dir); // landing pose before bounce (for animation)
+  const tiles = tileSet(level);
+  const soft = softSet(level);
+  const midSupported = isSupported(mid, tiles, soft);
 
-  if (!supported) {
-    startAnim('roll', pose, next, dir, 190, () => {
-      startAnim('fall', next, next, dir, 460, () => {
-        showOverlay('掉下去了！方块落入虚空', '重新开始', () => loadLevel(levelIndex));
-      });
+  if (!result.ok) {
+    startAnim('roll', pose, mid, dir, 190, () => {
+      if (midSupported && touchesBounce(mid, bounceSet(level))) {
+        // Landed on bounce then rebound into void / soft collapse
+        playBounce();
+        startAnim('roll', mid, result.pose, opposite(dir), 160, () => {
+          startAnim('fall', result.pose, result.pose, opposite(dir), 460, () => {
+            showOverlay('弹回去之后掉下去了！', '重新开始', () => loadLevel(levelIndex));
+          });
+        });
+      } else {
+        const softCollapse =
+          mid.ori === 'standing' && soft.has(cellKey(mid.x, mid.y));
+        startAnim('fall', mid, mid, dir, 460, () => {
+          showOverlay(
+            softCollapse ? '薄冰塌了！不能直立踩上去' : '掉下去了！方块落入虚空',
+            '重新开始',
+            () => loadLevel(levelIndex),
+          );
+        });
+      }
     });
     return;
   }
 
-  startAnim('roll', pose, next, dir, 210, () => {
-    pose = next;
-    moves += 1;
-    updateHud();
+  const landed = result.pose;
+  const didBounce = result.bounced;
 
-    if (isWin(pose, level.target)) {
-      startAnim('win', pose, pose, dir, 520, () => {
-        if (levelIndex >= LEVELS.length - 1) {
-          showOverlay(
-            `通关！全部 ${LEVELS.length} 关完成\n本关步数 ${moves}`,
-            '再玩一次',
-            () => loadLevel(0),
-          );
-        } else {
-          showOverlay(`过关！「${level.name}」· ${moves} 步`, '下一关', () =>
-            loadLevel(levelIndex + 1),
-          );
-        }
+  startAnim('roll', pose, mid, dir, 210, () => {
+    if (didBounce) {
+      playBounce();
+      startAnim('roll', mid, landed, opposite(dir), 180, () => {
+        pose = landed;
+        moves += 1;
+        updateHud();
+        finishAfterLand(dir);
       });
     } else {
-      busy = false;
-      anim = null;
+      pose = landed;
+      moves += 1;
+      updateHud();
+      finishAfterLand(dir);
     }
   });
 }
+
+function finishAfterLand(dir: Dir) {
+  if (isWin(pose, level.target)) {
+    startAnim('win', pose, pose, dir, 520, () => {
+      if (levelIndex >= LEVELS.length - 1) {
+        showOverlay(
+          `通关！全部 ${LEVELS.length} 关完成
+本关步数 ${moves}`,
+          '再玩一次',
+          () => loadLevel(0),
+        );
+      } else {
+        showOverlay(`过关！「${level.name}」· ${moves} 步`, '下一关', () =>
+          loadLevel(levelIndex + 1),
+        );
+      }
+    });
+  } else {
+    busy = false;
+    anim = null;
+  }
+}
+
 
 function tick(now: number) {
   if (anim) {

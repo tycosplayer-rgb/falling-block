@@ -188,6 +188,94 @@ export const LEVELS: Level[] = [
     target: '7,7',
     start: { x: 0, y: 0, ori: 'standing' },
   },
+
+  // 13 — 软塌教学（与脆桥同结构、更短）：必须躺着压过两格薄冰
+  {
+    name: '薄冰',
+    tiles: uniq([
+      ...rect(0, 0, 2, 2),
+      '3,1',
+      '4,1',
+      ...rect(5, 0, 7, 2),
+    ]),
+    soft: ['3,1', '4,1'],
+    target: '7,1',
+    start: { x: 0, y: 1, ori: 'standing' },
+  },
+
+  // 14 — 更长软桥：两格宽台方便转身，软桥仍只两格
+  {
+    name: '脆桥',
+    tiles: uniq([
+      ...rect(0, 0, 2, 2),
+      '3,1',
+      '4,1',
+      ...rect(5, 0, 8, 2),
+    ]),
+    soft: ['3,1', '4,1'],
+    target: '8,1',
+    start: { x: 0, y: 1, ori: 'standing' },
+  },
+
+  // 15 — 弹回教学：直路有弹簧，躺着撞会弹回，需绕行
+  {
+    name: '弹簧',
+    tiles: uniq([...rect(0, 0, 6, 1), '3,2', '3,3', ...rect(2, 4, 6, 5)]),
+    bounce: ['3,0', '3,1'],
+    target: '6,5',
+    start: { x: 0, y: 0, ori: 'standing' },
+  },
+
+  // 16 — 弹回门：中间弹簧格须直立踩过（躺着会弹）
+  {
+    name: '回力',
+    tiles: uniq([
+      ...rect(0, 1, 3, 3),
+      '4,2',
+      ...rect(5, 1, 8, 3),
+    ]),
+    bounce: ['4,2'],
+    target: '8,2',
+    start: { x: 0, y: 2, ori: 'standing' },
+  },
+
+  // 17 — 软塌 + 弹回：先躺过薄冰，再直立过弹簧
+  {
+    name: '险途',
+    tiles: uniq([
+      ...rect(0, 0, 2, 2),
+      '3,1',
+      '4,1',
+      ...rect(5, 0, 7, 2),
+      '8,1',
+      ...rect(9, 0, 11, 2),
+    ]),
+    soft: ['3,1', '4,1'],
+    bounce: ['8,1'],
+    target: '11,1',
+    start: { x: 0, y: 1, ori: 'standing' },
+  },
+
+  // 18 — 综合：软桥、绕弹簧、抵达终点
+  {
+    name: '新章',
+    tiles: uniq([
+      ...rect(0, 2, 2, 4),
+      '3,3',
+      '4,3',
+      ...rect(5, 2, 7, 4),
+      '6,1',
+      '6,0',
+      '7,0',
+      '8,0',
+      ...rect(8, 1, 8, 3),
+      ...rect(9, 2, 11, 4),
+    ]),
+    soft: ['3,3', '4,3'],
+    bounce: ['6,1', '6,0'],
+    target: '11,3',
+    start: { x: 0, y: 3, ori: 'standing' },
+  },
 ];
 
 export function getLevel(index: number): Level {

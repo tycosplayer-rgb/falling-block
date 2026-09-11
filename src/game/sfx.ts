@@ -142,6 +142,14 @@ export function playRoll(from: Orientation, to: Orientation) {
   else playFlatRoll();
 }
 
+export function playBounce() {
+  whenReady((c, t0) => {
+    toneAt(c, t0, 420, 0.08, 'square', { gain: 0.12, slideTo: 280 });
+    toneAt(c, t0 + 0.05, 260, 0.12, 'triangle', { gain: 0.14, slideTo: 160 });
+    noiseBurstAt(c, t0, 0.08, 0.1);
+  });
+}
+
 export function playFall() {
   whenReady((c, t0) => {
     toneAt(c, t0, 320, 0.45, 'sawtooth', { gain: 0.14, slideTo: 40 });

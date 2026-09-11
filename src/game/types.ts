@@ -19,8 +19,20 @@ export interface Pose {
 export interface Level {
   /** Display name (Chinese). */
   name: string;
-  /** Solid floor tiles as "x,y" keys. */
+  /** Solid floor tiles as "x,y" keys (includes soft / bounce cells). */
   tiles: string[];
+  /**
+   * Soft tiles: only support the block when lying flat.
+   * Standing on any soft cell collapses → fall.
+   * Must also appear in `tiles`.
+   */
+  soft?: string[];
+  /**
+   * Bounce tiles: if the block lands lying and occupies any bounce cell,
+   * it immediately rolls once in the opposite direction (one bounce per input).
+   * Must also appear in `tiles`.
+   */
+  bounce?: string[];
   /** Target hole / goal tile. Must be standing upright on this cell to win. */
   target: string;
   /** Starting pose. */
@@ -28,3 +40,8 @@ export interface Level {
 }
 
 export type Cell = { x: number; y: number };
+
+/** Outcome of one player input after special-tile resolution. */
+export type MoveResult =
+  | { ok: true; pose: Pose; bounced: boolean }
+  | { ok: false; pose: Pose; reason: 'fall' };

@@ -1,4 +1,4 @@
-import { DIRS, isSupported, isWin, poseKey, roll, tileSet } from './logic';
+import { DIRS, applyMove, isSupported, isWin, poseKey, softSet, tileSet } from './logic';
 import type { Dir, Level, Pose } from './types';
 
 export interface SolveResult {
@@ -7,12 +7,13 @@ export interface SolveResult {
   nodes: number;
 }
 
-/** BFS shortest-path solver. Returns move sequence or null if unsolvable. */
+/** BFS shortest-path solver (includes soft / bounce resolution). */
 export function solveLevel(level: Level): SolveResult {
   const tiles = tileSet(level);
+  const soft = softSet(level);
   const start = level.start;
 
-  if (!isSupported(start, tiles)) {
+  if (!isSupported(start, tiles, soft)) {
     return { solvable: false, moves: null, nodes: 0 };
   }
   if (isWin(start, level.target)) {
@@ -28,8 +29,9 @@ export function solveLevel(level: Level): SolveResult {
   while (qi < queue.length) {
     const cur = queue[qi++];
     for (const dir of DIRS) {
-      const next = roll(cur.pose, dir);
-      if (!isSupported(next, tiles)) continue;
+      const result = applyMove(level, cur.pose, dir);
+      if (!result.ok) continue;
+      const next = result.pose;
       const key = poseKey(next);
       if (visited.has(key)) continue;
       visited.add(key);

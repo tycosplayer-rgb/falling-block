@@ -358,7 +358,7 @@ function drawTileSlab(
   x: number,
   y: number,
   vt: ViewTransform,
-  kind: 'floor' | 'target',
+  kind: 'floor' | 'target' | 'soft' | 'bounce',
 ) {
   const h = 0.22;
   const min = { x, y, z: -h };
@@ -367,9 +367,26 @@ function drawTileSlab(
   const projected = corners.map((c) => project(c, vt));
   const checker = (x + y) & 1;
 
-  const topFill = kind === 'target' ? '#fbbf24' : checker ? '#4b6a96' : '#3e5a82';
-  const sideE = kind === 'target' ? '#b45309' : '#243552';
-  const sideS = kind === 'target' ? '#92400e' : '#1b2940';
+  let topFill: string;
+  let sideE: string;
+  let sideS: string;
+  if (kind === 'target') {
+    topFill = '#fbbf24';
+    sideE = '#b45309';
+    sideS = '#92400e';
+  } else if (kind === 'soft') {
+    topFill = checker ? '#7dd3fc' : '#38bdf8';
+    sideE = '#0284c7';
+    sideS = '#0369a1';
+  } else if (kind === 'bounce') {
+    topFill = checker ? '#f9a8d4' : '#f472b6';
+    sideE = '#db2777';
+    sideS = '#9d174d';
+  } else {
+    topFill = checker ? '#4b6a96' : '#3e5a82';
+    sideE = '#243552';
+    sideS = '#1b2940';
+  }
 
   ctx.lineWidth = Math.max(1, vt.tile * 0.03);
   ctx.lineJoin = 'round';
@@ -392,6 +409,30 @@ function drawTileSlab(
     ctx.arc(c.sx, c.sy, vt.tile * 0.1, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(120, 53, 15, 0.55)';
     ctx.fill();
+  } else if (kind === 'soft') {
+    // Crack mark — only safe while lying flat
+    const a = project({ x: x + 0.25, y: y + 0.35, z: 0.03 }, vt);
+    const b = project({ x: x + 0.55, y: y + 0.55, z: 0.03 }, vt);
+    const c = project({ x: x + 0.8, y: y + 0.4, z: 0.03 }, vt);
+    ctx.beginPath();
+    ctx.moveTo(a.sx, a.sy);
+    ctx.lineTo(b.sx, b.sy);
+    ctx.lineTo(c.sx, c.sy);
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = Math.max(1.2, vt.tile * 0.045);
+    ctx.stroke();
+  } else if (kind === 'bounce') {
+    // Spring chevron
+    const a = project({ x: x + 0.3, y: y + 0.65, z: 0.03 }, vt);
+    const b = project({ x: x + 0.5, y: y + 0.3, z: 0.03 }, vt);
+    const c = project({ x: x + 0.7, y: y + 0.65, z: 0.03 }, vt);
+    ctx.beginPath();
+    ctx.moveTo(a.sx, a.sy);
+    ctx.lineTo(b.sx, b.sy);
+    ctx.lineTo(c.sx, c.sy);
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = Math.max(1.4, vt.tile * 0.05);
+    ctx.stroke();
   }
 }
 
@@ -417,9 +458,15 @@ export function drawFrame(
   const vt = computeView(level, width, height);
   const tiles = level.tiles.map(parseCell).sort((a, b) => a.x + a.y - (b.x + b.y));
   const target = parseCell(level.target);
+  const soft = new Set(level.soft ?? []);
+  const bounce = new Set(level.bounce ?? []);
 
   for (const t of tiles) {
-    const kind = t.x === target.x && t.y === target.y ? 'target' : 'floor';
+    const key = `${t.x},${t.y}`;
+    let kind: 'floor' | 'target' | 'soft' | 'bounce' = 'floor';
+    if (t.x === target.x && t.y === target.y) kind = 'target';
+    else if (soft.has(key)) kind = 'soft';
+    else if (bounce.has(key)) kind = 'bounce';
     drawTileSlab(ctx, t.x, t.y, vt, kind);
   }
 

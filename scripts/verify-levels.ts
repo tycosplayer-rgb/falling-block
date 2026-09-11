@@ -1,5 +1,13 @@
 import { LEVELS } from '../src/game/levels.ts';
-import { DIRS, isSupported, isWin, roll, tileSet } from '../src/game/logic.ts';
+import {
+  DIRS,
+  applyMove,
+  isSupported,
+  isWin,
+  roll,
+  softSet,
+  tileSet,
+} from '../src/game/logic.ts';
 import { tumblingCorners } from '../src/game/render.ts';
 import { solveLevel } from '../src/game/solver.ts';
 import type { Pose } from '../src/game/types.ts';
@@ -54,6 +62,20 @@ console.log(`Verifying ${LEVELS.length} levels…\n`);
 for (let i = 0; i < LEVELS.length; i++) {
   const level = LEVELS[i];
   const tiles = tileSet(level);
+  const soft = softSet(level);
+
+  for (const s of level.soft ?? []) {
+    if (!tiles.has(s)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: soft ${s} missing from tiles`);
+      failed++;
+    }
+  }
+  for (const b of level.bounce ?? []) {
+    if (!tiles.has(b)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: bounce ${b} missing from tiles`);
+      failed++;
+    }
+  }
 
   if (!tiles.has(level.target)) {
     console.error(`✗ Level ${i + 1}「${level.name}」: target ${level.target} is not a solid tile`);
@@ -61,7 +83,7 @@ for (let i = 0; i < LEVELS.length; i++) {
     continue;
   }
 
-  if (!isSupported(level.start, tiles)) {
+  if (!isSupported(level.start, tiles, soft)) {
     console.error(`✗ Level ${i + 1}「${level.name}」: start pose has no support`);
     failed++;
     continue;
@@ -76,13 +98,14 @@ for (let i = 0; i < LEVELS.length; i++) {
 
   let pose = { ...level.start };
   for (const dir of result.moves) {
-    pose = roll(pose, dir);
-    if (!isSupported(pose, tiles)) {
+    const step = applyMove(level, pose, dir);
+    if (!step.ok) {
       console.error(`✗ Level ${i + 1}「${level.name}」: replay fell at move ${dir}`);
       failed++;
       pose = { x: -999, y: -999, ori: 'standing' };
       break;
     }
+    pose = step.pose;
   }
   if (pose.x === -999) continue;
 

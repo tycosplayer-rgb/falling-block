@@ -1,4 +1,4 @@
-import type { Cell, Dir, Level, Orientation, Pose } from './types';
+import type { Cell, Dir, Level, MoveResult, Orientation, Pose } from './types';
 
 export function cellKey(x: number, y: number): string {
   return `${x},${y}`;
@@ -64,13 +64,78 @@ export function roll(pose: Pose, dir: Dir): Pose {
   }
 }
 
+export function opposite(dir: Dir): Dir {
+  switch (dir) {
+    case 'N':
+      return 'S';
+    case 'S':
+      return 'N';
+    case 'E':
+      return 'W';
+    case 'W':
+      return 'E';
+  }
+}
+
 export function tileSet(level: Level): Set<string> {
   return new Set(level.tiles);
 }
 
-/** True if every occupied cell has solid floor support. */
-export function isSupported(pose: Pose, tiles: Set<string>): boolean {
-  return occupied(pose).every((c) => tiles.has(cellKey(c.x, c.y)));
+export function softSet(level: Level): Set<string> {
+  return new Set(level.soft ?? []);
+}
+
+export function bounceSet(level: Level): Set<string> {
+  return new Set(level.bounce ?? []);
+}
+
+/**
+ * Soft tiles only support a lying block.
+ * Standing on any soft cell → collapse (unsupported).
+ */
+export function isSupported(
+  pose: Pose,
+  tiles: Set<string>,
+  soft: Set<string> = new Set(),
+): boolean {
+  const cells = occupied(pose);
+  for (const c of cells) {
+    const key = cellKey(c.x, c.y);
+    if (!tiles.has(key)) return false;
+    if (pose.ori === 'standing' && soft.has(key)) return false;
+  }
+  return true;
+}
+
+export function touchesBounce(pose: Pose, bounce: Set<string>): boolean {
+  if (pose.ori === 'standing') return false;
+  return occupied(pose).some((c) => bounce.has(cellKey(c.x, c.y)));
+}
+
+/**
+ * Apply one player roll, resolving soft collapse and a single bounce rebound.
+ */
+export function applyMove(level: Level, pose: Pose, dir: Dir): MoveResult {
+  const tiles = tileSet(level);
+  const soft = softSet(level);
+  const bounce = bounceSet(level);
+
+  let next = roll(pose, dir);
+  if (!isSupported(next, tiles, soft)) {
+    return { ok: false, pose: next, reason: 'fall' };
+  }
+
+  let bounced = false;
+  if (touchesBounce(next, bounce)) {
+    const back = roll(next, opposite(dir));
+    bounced = true;
+    if (!isSupported(back, tiles, soft)) {
+      return { ok: false, pose: back, reason: 'fall' };
+    }
+    next = back;
+  }
+
+  return { ok: true, pose: next, bounced };
 }
 
 /** Win condition: upright exactly on the target tile. */
