@@ -44,37 +44,44 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 6px 8px;
   background: linear-gradient(180deg, #121a2e 0%, #0b1220 100%);
   border-bottom: 1px solid #243152;
   z-index: 2;
+  flex-wrap: nowrap;
+  min-height: 0;
 }
 
 .hud-left,
 .hud-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .title {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: #9ec1ff;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 2px 7px;
   border-radius: 999px;
   background: #1a2744;
   border: 1px solid #33508a;
-  font-size: 0.85rem;
+  font-size: 0.72rem;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 .level-badge {
@@ -83,6 +90,9 @@ body {
   font: inherit;
   cursor: pointer;
   touch-action: manipulation;
+  max-width: min(42vw, 200px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .level-badge:active {

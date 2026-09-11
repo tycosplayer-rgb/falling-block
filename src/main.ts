@@ -66,8 +66,8 @@ function resize() {
 }
 
 function updateHud() {
-  levelLabel.textContent = `关卡 ${levelIndex + 1} · ${level.name}`;
-  movesLabel.textContent = `步数 ${moves}`;
+  levelLabel.textContent = `关卡${levelIndex + 1}·${level.name}`;
+  movesLabel.textContent = `步数${moves}`;
 }
 
 function loadLevel(i: number) {
