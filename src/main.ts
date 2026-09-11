@@ -1,7 +1,15 @@
 import { attachControls } from './game/input';
 import { clonePose, isSupported, isWin, roll, tileSet } from './game/logic';
 import { LEVELS } from './game/levels';
+import { loadLastLevelIndex, saveLastLevelIndex } from './game/progress';
 import { drawFrame, type AnimState } from './game/render';
+import {
+  playFall,
+  playRoll,
+  playVictory,
+  playWin,
+  unlockAudio,
+} from './game/sfx';
 import type { Dir, Level, Pose } from './game/types';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -52,6 +60,7 @@ function loadLevel(i: number) {
   pendingAfterAnim = null;
   hideOverlay();
   updateHud();
+  saveLastLevelIndex(levelIndex);
 }
 
 function showOverlay(message: string, buttonText: string, onClick: () => void) {
@@ -89,6 +98,13 @@ function startAnim(
     fallDepth: 7,
   };
   pendingAfterAnim = after ?? null;
+
+  if (kind === 'roll') playRoll(from.ori, to.ori);
+  else if (kind === 'fall') playFall();
+  else if (kind === 'win') {
+    if (levelIndex >= LEVELS.length - 1) playVictory();
+    else playWin();
+  }
 }
 
 function tryMove(dir: Dir) {
@@ -176,19 +192,28 @@ window.addEventListener(
 );
 
 btnRestart.addEventListener('click', () => {
+  unlockAudio();
   loadLevel(levelIndex);
 });
 
 document.querySelectorAll<HTMLButtonElement>('[data-dir]').forEach((btn) => {
   btn.addEventListener('click', () => {
+    unlockAudio();
     const dir = btn.dataset.dir as Dir;
     tryMove(dir);
   });
 });
 
-attachControls(canvas, tryMove);
+const unlockOnce = () => unlockAudio();
+window.addEventListener('pointerdown', unlockOnce, { once: true });
+window.addEventListener('keydown', unlockOnce, { once: true });
+
+attachControls(canvas, (dir) => {
+  unlockAudio();
+  tryMove(dir);
+});
 window.addEventListener('resize', resize);
 
-loadLevel(0);
+loadLevel(loadLastLevelIndex(LEVELS.length));
 resize();
 requestAnimationFrame(tick);
