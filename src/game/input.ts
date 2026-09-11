@@ -1,4 +1,5 @@
 import type { Dir } from './types';
+import { unlockAudio } from './sfx';
 import { screenDeltaToWorldDir } from './view';
 
 const SWIPE_THRESHOLD = 36;
@@ -39,6 +40,7 @@ export function attachControls(
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     const el = e.target as HTMLElement;
     if (el.closest('button')) return;
+    void unlockAudio(); // sync resume kick while gesture is live
     target.setPointerCapture?.(e.pointerId);
     begin(e.clientX, e.clientY);
   };
@@ -74,6 +76,7 @@ export function attachControls(
     const now = performance.now();
     if (now - lastKeyAt < KEY_COOLDOWN_MS) return;
     lastKeyAt = now;
+    void unlockAudio();
     onMove(screenDeltaToWorldDir(delta.dx, delta.dy));
   };
 
