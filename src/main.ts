@@ -191,26 +191,35 @@ window.addEventListener(
   { passive: false },
 );
 
+btnRestart.addEventListener('pointerdown', () => {
+  void unlockAudio();
+});
 btnRestart.addEventListener('click', () => {
-  unlockAudio();
-  loadLevel(levelIndex);
+  void unlockAudio().then(() => loadLevel(levelIndex));
 });
 
 document.querySelectorAll<HTMLButtonElement>('[data-dir]').forEach((btn) => {
+  btn.addEventListener('pointerdown', () => {
+    void unlockAudio();
+  });
   btn.addEventListener('click', () => {
-    unlockAudio();
-    const dir = btn.dataset.dir as Dir;
-    tryMove(dir);
+    void unlockAudio().then(() => {
+      const dir = btn.dataset.dir as Dir;
+      tryMove(dir);
+    });
   });
 });
 
-const unlockOnce = () => unlockAudio();
-window.addEventListener('pointerdown', unlockOnce, { once: true });
-window.addEventListener('keydown', unlockOnce, { once: true });
+// Keep unlocking on every gesture until AudioContext is running (iOS/WebKit).
+const unlockOnGesture = () => {
+  void unlockAudio();
+};
+window.addEventListener('pointerdown', unlockOnGesture, { capture: true });
+window.addEventListener('touchstart', unlockOnGesture, { capture: true, passive: true });
+window.addEventListener('keydown', unlockOnGesture, { capture: true });
 
 attachControls(canvas, (dir) => {
-  unlockAudio();
-  tryMove(dir);
+  void unlockAudio().then(() => tryMove(dir));
 });
 window.addEventListener('resize', resize);
 
