@@ -1,6 +1,6 @@
 import { boundsOf, parseCell } from './logic';
 import type { Dir, Level, Pose } from './types';
-import { VIEW_SKEW_X, VIEW_SKEW_Y, VIEW_Z_SCALE } from './view';
+import { AXIS_X, AXIS_Y, VIEW_Z_SCALE } from './view';
 
 export type AnimKind = 'idle' | 'roll' | 'fall' | 'win';
 
@@ -25,8 +25,10 @@ interface ViewTransform {
   originX: number;
   originY: number;
   tile: number;
-  skewX: number;
-  skewY: number;
+  xx: number; // screen-x scale of world +X
+  yx: number; // screen-x scale of world +Y (usually negative)
+  xy: number; // screen-y scale of world +X
+  yy: number; // screen-y scale of world +Y
   zScale: number;
 }
 
@@ -39,9 +41,10 @@ function easeInQuad(t: number): number {
 }
 
 function project(p: Vec3, vt: ViewTransform): { sx: number; sy: number } {
-  const sx = vt.originX + (p.x - p.y) * vt.tile * vt.skewX;
+  // Dimetric: independent X/Y axis scales so unit-square diagonals do not share sx.
+  const sx = vt.originX + (p.x * vt.xx + p.y * vt.yx) * vt.tile;
   const sy =
-    vt.originY + (p.x + p.y) * vt.tile * vt.skewY - p.z * vt.tile * vt.zScale;
+    vt.originY + (p.x * vt.xy + p.y * vt.yy) * vt.tile - p.z * vt.tile * vt.zScale;
   return { sx, sy };
 }
 
@@ -151,8 +154,10 @@ function faceTint(faceIndex: number, standing: boolean): string {
 
 function computeView(level: Level, width: number, height: number): ViewTransform {
   const b = boundsOf(level);
-  const skewX = VIEW_SKEW_X;
-  const skewY = VIEW_SKEW_Y;
+  const xx = AXIS_X.sx;
+  const yx = AXIS_Y.sx;
+  const xy = AXIS_X.sy;
+  const yy = AXIS_Y.sy;
   const zScale = VIEW_Z_SCALE;
   const pad = 52;
 
@@ -172,8 +177,10 @@ function computeView(level: Level, width: number, height: number): ViewTransform
     originX: 0,
     originY: 0,
     tile: 1,
-    skewX,
-    skewY,
+    xx,
+    yx,
+    xy,
+    yy,
     zScale,
   };
   let minSX = Infinity;
@@ -195,8 +202,10 @@ function computeView(level: Level, width: number, height: number): ViewTransform
     originX: 0,
     originY: 0,
     tile,
-    skewX,
-    skewY,
+    xx,
+    yx,
+    xy,
+    yy,
     zScale,
   };
   minSX = Infinity;

@@ -187,10 +187,10 @@ body {
 }
 
 /* N up-right, W up-left, E down-right, S down-left (matches map projection) */
-.dpad-n { transform: translate(-50%, -50%) translate(47px, -26px); }
-.dpad-w { transform: translate(-50%, -50%) translate(-47px, -26px); }
-.dpad-e { transform: translate(-50%, -50%) translate(47px, 26px); }
-.dpad-s { transform: translate(-50%, -50%) translate(-47px, 26px); }
+.dpad-n { transform: translate(-50%, -50%) translate(39px, -34px); }
+.dpad-w { transform: translate(-50%, -50%) translate(-48px, -19px); }
+.dpad-e { transform: translate(-50%, -50%) translate(48px, 19px); }
+.dpad-s { transform: translate(-50%, -50%) translate(-39px, 34px); }
 
 .dpad-btn:active {
   background: rgba(59, 130, 246, 0.85);

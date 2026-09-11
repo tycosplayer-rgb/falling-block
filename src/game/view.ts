@@ -1,30 +1,32 @@
-/** Shared isometric view constants — keep input & render in sync. */
+/** Shared view constants — dimetric projection (not pure isometric).
+ *
+ * Pure (x-y)/(x+y) isometric makes opposite corners of a unit square share
+ * the same screen-x, so a standing block's front-left and back-right vertical
+ * edges coincide. Unequal axis scales keep those edges apart.
+ */
 import type { Dir } from './types';
 
-export const VIEW_SKEW_X = 0.9;
-export const VIEW_SKEW_Y = 0.5;
-export const VIEW_Z_SCALE = 0.72;
+/** Screen Δ for +1 world X */
+export const AXIS_X = { sx: 0.92, sy: 0.36 };
+/** Screen Δ for +1 world Y */
+export const AXIS_Y = { sx: -0.58, sy: 0.50 };
+export const VIEW_Z_SCALE = 0.78;
+
+/** @deprecated aliases kept for any leftover imports */
+export const VIEW_SKEW_X = AXIS_X.sx;
+export const VIEW_SKEW_Y = AXIS_X.sy;
 
 /**
- * Screen-space vectors of +1 step on each world axis, under the same
- * projection as the map: sx ~ (x - y)*skewX, sy ~ (x + y)*skewY.
- *
- *   +X (E) -> (+skewX, +skewY)  screen down-right
- *   -X (W) -> (-skewX, -skewY)  screen up-left
- *   +Y (S) -> (-skewX, +skewY)  screen down-left
- *   -Y (N) -> (+skewX, -skewY)  screen up-right
+ * Screen-space vectors of +1 step on each world axis (same as project()).
+ *   E = +X, W = -X, S = +Y, N = -Y
  */
 export const WORLD_DIR_SCREEN: Record<Dir, { dx: number; dy: number }> = {
-  E: { dx: VIEW_SKEW_X, dy: VIEW_SKEW_Y },
-  W: { dx: -VIEW_SKEW_X, dy: -VIEW_SKEW_Y },
-  S: { dx: -VIEW_SKEW_X, dy: VIEW_SKEW_Y },
-  N: { dx: VIEW_SKEW_X, dy: -VIEW_SKEW_Y },
+  E: { dx: AXIS_X.sx, dy: AXIS_X.sy },
+  W: { dx: -AXIS_X.sx, dy: -AXIS_X.sy },
+  S: { dx: AXIS_Y.sx, dy: AXIS_Y.sy },
+  N: { dx: -AXIS_Y.sx, dy: -AXIS_Y.sy },
 };
 
-/**
- * Map a screen-space swipe / key delta to the nearest world roll Dir,
- * by matching against the projected world axes (same transform as the map).
- */
 export function screenDeltaToWorldDir(dx: number, dy: number): Dir {
   let best: Dir = 'E';
   let bestDot = -Infinity;
@@ -37,4 +39,11 @@ export function screenDeltaToWorldDir(dx: number, dy: number): Dir {
     }
   }
   return best;
+}
+
+/** Pixel offsets for D-pad buttons along projected axes (radius ~52). */
+export function dpadOffset(dir: Dir, radius = 52): { x: number; y: number } {
+  const v = WORLD_DIR_SCREEN[dir];
+  const len = Math.hypot(v.dx, v.dy) || 1;
+  return { x: (v.dx / len) * radius, y: (v.dy / len) * radius };
 }
