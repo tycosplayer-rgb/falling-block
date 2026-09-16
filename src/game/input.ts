@@ -84,7 +84,13 @@ export function attachControls(
   const preventWheelZoom = (e: WheelEvent) => {
     if (e.ctrlKey || e.metaKey) e.preventDefault();
   };
-  const preventTouchMove = (e: TouchEvent) => e.preventDefault();
+  const preventTouchMove = (e: TouchEvent) => {
+    const node = e.target as Node | null;
+    if (node instanceof Element && node.closest('#level-select .level-grid')) {
+      return; // allow scrolling the level list
+    }
+    e.preventDefault();
+  };
   const preventDoubleTapZoom = (e: TouchEvent) => {
     const now = Date.now();
     // Always block the second tap of a double-tap (iOS Safari zoom).

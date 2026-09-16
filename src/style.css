@@ -157,6 +157,14 @@ body {
   touch-action: none;
 }
 
+#level-select.overlay {
+  align-items: stretch;
+  justify-content: center;
+  padding: max(10px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
+  touch-action: manipulation;
+  overflow: hidden;
+}
+
 .overlay.hidden {
   display: none;
 }
@@ -272,14 +280,18 @@ body {
 
 .level-select-card {
   width: min(420px, 92vw);
-  max-height: min(78dvh, 560px);
+  max-height: 100%;
+  margin: auto;
   display: flex;
   flex-direction: column;
   text-align: left;
-  padding: 16px 16px 18px;
+  padding: 16px 12px 16px 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .level-select-head {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -294,14 +306,38 @@ body {
 }
 
 .level-grid {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  max-height: min(58dvh, 420px);
-  padding-right: 2px;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #60a5fa #152238;
+}
+
+.level-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.level-grid::-webkit-scrollbar-track {
+  background: #121a2e;
+  border-radius: 999px;
+}
+
+.level-grid::-webkit-scrollbar-thumb {
+  background: #3d5f9e;
+  border-radius: 999px;
+}
+
+.level-grid::-webkit-scrollbar-thumb:hover {
+  background: #60a5fa;
 }
 
 .level-pick {
