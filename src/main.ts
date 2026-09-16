@@ -19,7 +19,7 @@ import {
   saveLastLevelIndex,
   unlockAfterClear,
 } from './game/progress';
-import { drawFrame, type AnimState } from './game/render';
+import { drawFrame, resetCamera, type AnimState } from './game/render';
 import {
   playBounce,
   playFall,
@@ -81,6 +81,7 @@ function loadLevel(i: number) {
   hideOverlay();
   updateHud();
   saveLastLevelIndex(levelIndex);
+  resetCamera();
 }
 
 function showOverlay(message: string, buttonText: string, onClick: () => void) {

@@ -152,19 +152,39 @@ function faceTint(faceIndex: number, standing: boolean): string {
   }
 }
 
-function computeView(level: Level, width: number, height: number): ViewTransform {
+/** Smoothed camera origin — follows the block on large maps. */
+let camOriginX: number | null = null;
+let camOriginY: number | null = null;
+let camLevelKey = '';
+
+function resetCamera() {
+  camOriginX = null;
+  camOriginY = null;
+  camLevelKey = '';
+}
+
+/**
+ * Camera: readable tile size; if the whole map fits, center it.
+ * Otherwise keep ~preferred zoom and pan so the block stays in view.
+ */
+function computeView(
+  level: Level,
+  width: number,
+  height: number,
+  focus: Vec3,
+): ViewTransform {
   const b = boundsOf(level);
   const xx = AXIS_X.sx;
   const yx = AXIS_Y.sx;
   const xy = AXIS_X.sy;
   const yy = AXIS_Y.sy;
   const zScale = VIEW_Z_SCALE;
-  const pad = 52;
+  const margin = 36;
+  const preferred = 44;
 
-  const usableW = Math.max(100, width - pad * 2);
-  const usableH = Math.max(100, height - pad * 2);
+  const usableW = Math.max(100, width - margin * 2);
+  const usableH = Math.max(100, height - margin * 2);
 
-  // Project AABB of the whole map (including a standing block height)
   const worldCorners: Vec3[] = [];
   for (const x of [b.minX, b.maxX + 1]) {
     for (const y of [b.minY, b.maxY + 1]) {
@@ -196,9 +216,26 @@ function computeView(level: Level, width: number, height: number): ViewTransform
   }
   const spanX = Math.max(0.001, maxSX - minSX);
   const spanY = Math.max(0.001, maxSY - minSY);
-  const tile = Math.max(18, Math.min(70, Math.min(usableW / spanX, usableH / spanY)));
+  const fitTile = Math.min(usableW / spanX, usableH / spanY);
+  // Small maps: fit (capped). Large maps: fixed readable zoom + pan.
+  const tile =
+    fitTile >= preferred
+      ? Math.min(58, fitTile)
+      : Math.max(32, Math.min(preferred, 48));
 
-  const vt: ViewTransform = {
+  const levelKey = `${level.name}:${b.minX},${b.maxX},${b.minY},${b.maxY}`;
+  if (levelKey !== camLevelKey) {
+    camLevelKey = levelKey;
+    camOriginX = null;
+    camOriginY = null;
+  }
+
+  // Map bounds at chosen tile (origin 0)
+  minSX = Infinity;
+  maxSX = -Infinity;
+  minSY = Infinity;
+  maxSY = -Infinity;
+  const scaled: ViewTransform = {
     originX: 0,
     originY: 0,
     tile,
@@ -208,20 +245,54 @@ function computeView(level: Level, width: number, height: number): ViewTransform
     yy,
     zScale,
   };
-  minSX = Infinity;
-  maxSX = -Infinity;
-  minSY = Infinity;
-  maxSY = -Infinity;
   for (const c of worldCorners) {
-    const s = project(c, vt);
+    const s = project(c, scaled);
     minSX = Math.min(minSX, s.sx);
     maxSX = Math.max(maxSX, s.sx);
     minSY = Math.min(minSY, s.sy);
     maxSY = Math.max(maxSY, s.sy);
   }
-  vt.originX = width / 2 - (minSX + maxSX) / 2;
-  vt.originY = height / 2 - (minSY + maxSY) / 2;
-  return vt;
+
+  const focusS = project(focus, scaled);
+  let originX = width / 2 - focusS.sx;
+  let originY = height / 2 - focusS.sy;
+
+  const mapW = maxSX - minSX;
+  const mapH = maxSY - minSY;
+  if (mapW <= width - margin * 2) {
+    originX = width / 2 - (minSX + maxSX) / 2;
+  } else {
+    const minO = width - margin - maxSX;
+    const maxO = margin - minSX;
+    originX = Math.max(minO, Math.min(maxO, originX));
+  }
+  if (mapH <= height - margin * 2) {
+    originY = height / 2 - (minSY + maxSY) / 2;
+  } else {
+    const minO = height - margin - maxSY;
+    const maxO = margin - minSY;
+    originY = Math.max(minO, Math.min(maxO, originY));
+  }
+
+  const lerp = 0.22;
+  if (camOriginX == null || camOriginY == null) {
+    camOriginX = originX;
+    camOriginY = originY;
+  } else {
+    camOriginX += (originX - camOriginX) * lerp;
+    camOriginY += (originY - camOriginY) * lerp;
+  }
+
+  return {
+    originX: camOriginX,
+    originY: camOriginY,
+    tile,
+    xx,
+    yx,
+    xy,
+    yy,
+    zScale,
+  };
 }
 
 function drawQuad(
@@ -436,6 +507,52 @@ function drawTileSlab(
   }
 }
 
+function blockCorners(
+  pose: Pose,
+  anim: AnimState | null,
+): { corners: Vec3[]; standing: boolean; alpha: number; glow: boolean } {
+  let corners: Vec3[];
+  let standing = pose.ori === 'standing';
+  let alpha = 1;
+  let glow = false;
+
+  if (anim && anim.kind === 'roll') {
+    const t = easeOutCubic(anim.t);
+    corners = tumblingCorners(anim.from, anim.dir, t);
+    standing = t < 0.5 ? anim.from.ori === 'standing' : anim.to.ori === 'standing';
+  } else if (anim && anim.kind === 'fall') {
+    const t = easeInQuad(anim.t);
+    const { min, max } = boxAABB(anim.from);
+    const base = aabbCorners(min, max);
+    corners = base.map((p) => ({ x: p.x, y: p.y, z: p.z - t * anim.fallDepth }));
+    standing = anim.from.ori === 'standing';
+    alpha = 1 - t * 0.85;
+  } else if (anim && anim.kind === 'win') {
+    const bounceAmt = Math.sin(anim.t * Math.PI) * 0.45;
+    const { min, max } = boxAABB(anim.to);
+    corners = aabbCorners(min, max).map((p) => ({ ...p, z: p.z + bounceAmt }));
+    standing = true;
+    glow = true;
+  } else {
+    const { min, max } = boxAABB(pose);
+    corners = aabbCorners(min, max);
+  }
+  return { corners, standing, alpha, glow };
+}
+
+function centroid(corners: Vec3[]): Vec3 {
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  for (const c of corners) {
+    x += c.x;
+    y += c.y;
+    z += c.z;
+  }
+  const n = corners.length || 1;
+  return { x: x / n, y: y / n, z: z / n };
+}
+
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
   level: Level,
@@ -455,7 +572,9 @@ export function drawFrame(
     ctx.fill();
   }
 
-  const vt = computeView(level, width, height);
+  const { corners, standing, alpha, glow } = blockCorners(pose, anim);
+  const focus = centroid(corners);
+  const vt = computeView(level, width, height, focus);
   const tiles = level.tiles.map(parseCell).sort((a, b) => a.x + a.y - (b.x + b.y));
   const target = parseCell(level.target);
   const soft = new Set(level.soft ?? []);
@@ -470,32 +589,7 @@ export function drawFrame(
     drawTileSlab(ctx, t.x, t.y, vt, kind);
   }
 
-  let corners: Vec3[];
-  let standing = pose.ori === 'standing';
-  let alpha = 1;
-  let glow = false;
-
-  if (anim && anim.kind === 'roll') {
-    const t = easeOutCubic(anim.t);
-    corners = tumblingCorners(anim.from, anim.dir, t);
-    standing = t < 0.5 ? anim.from.ori === 'standing' : anim.to.ori === 'standing';
-  } else if (anim && anim.kind === 'fall') {
-    const t = easeInQuad(anim.t);
-    const { min, max } = boxAABB(anim.from);
-    const base = aabbCorners(min, max);
-    corners = base.map((p) => ({ x: p.x, y: p.y, z: p.z - t * anim.fallDepth }));
-    standing = anim.from.ori === 'standing';
-    alpha = 1 - t * 0.85;
-  } else if (anim && anim.kind === 'win') {
-    const bounce = Math.sin(anim.t * Math.PI) * 0.45;
-    const { min, max } = boxAABB(anim.to);
-    corners = aabbCorners(min, max).map((p) => ({ ...p, z: p.z + bounce }));
-    standing = true;
-    glow = true;
-  } else {
-    const { min, max } = boxAABB(pose);
-    corners = aabbCorners(min, max);
-  }
-
   drawCuboid(ctx, corners, vt, standing, alpha, glow);
 }
+
+export { resetCamera };
