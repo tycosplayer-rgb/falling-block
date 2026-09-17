@@ -487,6 +487,40 @@ export const LEVELS: Level[] = [
     start: { x: 0, y: 2, ori: 'standing' },
   },
 
+  // 29 — 定向飞板：定点东弹跨隙入中岛，再定点北弹上目标岛（立着不弹）
+  {
+    name: '定向飞板',
+    tiles: uniq([
+      ...rect(0, 1, 3, 3),
+      '4,2', '5,2',
+      ...rect(6, 1, 8, 3),
+      '7,0', '7,-1',
+      ...rect(6, -4, 8, -2),
+    ]),
+    bounceFixed: {
+      '4,2': 'E',
+      '7,-1': 'N',
+    },
+    target: '7,-3',
+    start: { x: 1, y: 2, ori: 'standing' },
+  },
+
+  // 30 — 乱流：随机弹垫；四周有缓冲廊道，求解器按四向存在性展开
+  {
+    name: '乱流',
+    tiles: uniq([
+      ...rect(0, 2, 2, 4),
+      '3,3',
+      ...rect(4, 1, 5, 5),
+      '4,3',
+      ...rect(6, 2, 8, 4),
+      ...rect(7, 0, 9, 1),
+    ]),
+    bounceRandom: ['4,3'],
+    target: '9,0',
+    start: { x: 0, y: 3, ori: 'standing' },
+  },
+
 ];
 
 export function getLevel(index: number): Level {

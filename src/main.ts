@@ -1,16 +1,13 @@
 import { attachControls } from './game/input';
 import {
   applyMove,
-  bounceSet,
   cellKey,
   clonePose,
   isSupported,
   isWin,
-  opposite,
   roll,
   softSet,
   supportSet,
-  touchesBounce,
 } from './game/logic';
 import { LEVELS } from './game/levels';
 import {
@@ -136,14 +133,15 @@ function tryMove(dir: Dir) {
   const support = supportSet(level);
   const soft = softSet(level);
   const midSupported = isSupported(mid, support, soft);
+  const bounceDir = result.bounceDir;
 
   if (!result.ok) {
     startAnim('roll', pose, mid, dir, 190, () => {
-      if (midSupported && touchesBounce(mid, bounceSet(level))) {
+      if (midSupported && result.bounced && bounceDir) {
         // Landed on bounce then rebound into void / soft collapse
         playBounce();
-        startAnim('roll', mid, result.pose, opposite(dir), 160, () => {
-          startAnim('fall', result.pose, result.pose, opposite(dir), 460, () => {
+        startAnim('roll', mid, result.pose, bounceDir, 160, () => {
+          startAnim('fall', result.pose, result.pose, bounceDir, 460, () => {
             showOverlay('弹回去之后掉下去了！', '重新开始', () => loadLevel(levelIndex));
           });
         });
@@ -166,9 +164,9 @@ function tryMove(dir: Dir) {
   const didBounce = result.bounced;
 
   startAnim('roll', pose, mid, dir, 210, () => {
-    if (didBounce) {
+    if (didBounce && bounceDir) {
       playBounce();
-      startAnim('roll', mid, landed, opposite(dir), 180, () => {
+      startAnim('roll', mid, landed, bounceDir, 180, () => {
         pose = landed;
         moves += 1;
         updateHud();

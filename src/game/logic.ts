@@ -89,6 +89,14 @@ export function bounceSet(level: Level): Set<string> {
   return new Set(level.bounce ?? []);
 }
 
+export function bounceFixedMap(level: Level): Record<string, Dir> {
+  return level.bounceFixed ?? {};
+}
+
+export function bounceRandomSet(level: Level): Set<string> {
+  return new Set(level.bounceRandom ?? []);
+}
+
 export function trapSet(level: Level): Set<string> {
   return new Set(level.trap ?? []);
 }
@@ -133,29 +141,99 @@ export function touchesBounce(pose: Pose, bounce: Set<string>): boolean {
 }
 
 /**
- * Apply one player roll, resolving soft collapse and a single bounce rebound.
+ * Fixed bounce Dir for a lying pose: first occupied cell (in occupied() order)
+ * that appears in bounceFixed. Standing → null.
  */
-export function applyMove(level: Level, pose: Pose, dir: Dir): MoveResult {
+export function fixedBounceDir(
+  pose: Pose,
+  bounceFixed: Record<string, Dir>,
+): Dir | null {
+  if (pose.ori === 'standing') return null;
+  for (const c of occupied(pose)) {
+    const key = cellKey(c.x, c.y);
+    if (Object.prototype.hasOwnProperty.call(bounceFixed, key)) {
+      return bounceFixed[key];
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve which bounce direction(s) apply after landing on `mid`.
+ * Priority: bounceFixed → bounceRandom → classic bounce.
+ * Standing never bounces. Returns null if no bounce.
+ */
+export function bounceDirsForLanding(
+  level: Level,
+  mid: Pose,
+  inputDir: Dir,
+): Dir[] | null {
+  if (mid.ori === 'standing') return null;
+
+  const fixed = fixedBounceDir(mid, bounceFixedMap(level));
+  if (fixed) return [fixed];
+
+  if (touchesBounce(mid, bounceRandomSet(level))) {
+    return [...DIRS];
+  }
+
+  if (touchesBounce(mid, bounceSet(level))) {
+    return [opposite(inputDir)];
+  }
+
+  return null;
+}
+
+/**
+ * All possible outcomes of one player input (random bounce expands to 4).
+ * Used by the solver (existential) and by applyMove (picks one).
+ */
+export function applyMoveOutcomes(
+  level: Level,
+  pose: Pose,
+  dir: Dir,
+): MoveResult[] {
   const support = supportSet(level);
   const soft = softSet(level);
-  const bounce = bounceSet(level);
 
-  let next = roll(pose, dir);
-  if (!isSupported(next, support, soft)) {
-    return { ok: false, pose: next, reason: 'fall' };
+  const mid = roll(pose, dir);
+  if (!isSupported(mid, support, soft)) {
+    return [{ ok: false, pose: mid, reason: 'fall' }];
   }
 
-  let bounced = false;
-  if (touchesBounce(next, bounce)) {
-    const back = roll(next, opposite(dir));
-    bounced = true;
+  const bounceDirs = bounceDirsForLanding(level, mid, dir);
+  if (!bounceDirs) {
+    return [{ ok: true, pose: mid, bounced: false }];
+  }
+
+  return bounceDirs.map((bdir) => {
+    const back = roll(mid, bdir);
     if (!isSupported(back, support, soft)) {
-      return { ok: false, pose: back, reason: 'fall' };
+      return {
+        ok: false as const,
+        pose: back,
+        reason: 'fall' as const,
+        bounced: true,
+        bounceDir: bdir,
+      };
     }
-    next = back;
-  }
+    return {
+      ok: true as const,
+      pose: back,
+      bounced: true,
+      bounceDir: bdir,
+    };
+  });
+}
 
-  return { ok: true, pose: next, bounced };
+/**
+ * Apply one player roll, resolving soft collapse and a single bounce rebound.
+ * Random bounce: picks one of the 4 dirs uniformly (gameplay).
+ */
+export function applyMove(level: Level, pose: Pose, dir: Dir): MoveResult {
+  const outcomes = applyMoveOutcomes(level, pose, dir);
+  if (outcomes.length === 1) return outcomes[0];
+  return outcomes[Math.floor(Math.random() * outcomes.length)]!;
 }
 
 /** Win condition: upright exactly on the target tile. */

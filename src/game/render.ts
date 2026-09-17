@@ -424,12 +424,22 @@ function drawCuboid(
   ctx.restore();
 }
 
+type TileKind = 'floor' | 'target' | 'soft' | 'bounce' | 'bounceFixed' | 'bounceRandom';
+
+const FIXED_ARROW: Record<Dir, string> = {
+  N: '▲',
+  S: '▼',
+  E: '▶',
+  W: '◀',
+};
+
 function drawTileSlab(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   vt: ViewTransform,
-  kind: 'floor' | 'target' | 'soft' | 'bounce',
+  kind: TileKind,
+  fixedDir?: Dir,
 ) {
   const h = 0.22;
   const min = { x, y, z: -h };
@@ -453,6 +463,16 @@ function drawTileSlab(
     topFill = checker ? '#f9a8d4' : '#f472b6';
     sideE = '#db2777';
     sideS = '#9d174d';
+  } else if (kind === 'bounceFixed') {
+    // Amber / orange — distinct from pink rebound
+    topFill = checker ? '#fdba74' : '#f97316';
+    sideE = '#c2410c';
+    sideS = '#9a3412';
+  } else if (kind === 'bounceRandom') {
+    // Purple / violet
+    topFill = checker ? '#d8b4fe' : '#a855f7';
+    sideE = '#7e22ce';
+    sideS = '#6b21a8';
   } else {
     topFill = checker ? '#4b6a96' : '#3e5a82';
     sideE = '#243552';
@@ -504,6 +524,20 @@ function drawTileSlab(
     ctx.strokeStyle = 'rgba(255,255,255,0.85)';
     ctx.lineWidth = Math.max(1.4, vt.tile * 0.05);
     ctx.stroke();
+  } else if (kind === 'bounceFixed' && fixedDir) {
+    const c = project({ x: x + 0.5, y: y + 0.5, z: 0.04 }, vt);
+    ctx.font = `bold ${Math.max(12, vt.tile * 0.42)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillText(FIXED_ARROW[fixedDir], c.sx, c.sy);
+  } else if (kind === 'bounceRandom') {
+    const c = project({ x: x + 0.5, y: y + 0.5, z: 0.04 }, vt);
+    ctx.font = `bold ${Math.max(11, vt.tile * 0.4)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillText('？', c.sx, c.sy);
   }
 }
 
@@ -579,14 +613,21 @@ export function drawFrame(
   const target = parseCell(level.target);
   const soft = new Set(level.soft ?? []);
   const bounce = new Set(level.bounce ?? []);
+  const bounceFixed = level.bounceFixed ?? {};
+  const bounceRandom = new Set(level.bounceRandom ?? []);
 
   for (const t of tiles) {
     const key = `${t.x},${t.y}`;
-    let kind: 'floor' | 'target' | 'soft' | 'bounce' = 'floor';
+    let kind: TileKind = 'floor';
+    let fixedDir: Dir | undefined;
     if (t.x === target.x && t.y === target.y) kind = 'target';
     else if (soft.has(key)) kind = 'soft';
+    else if (Object.prototype.hasOwnProperty.call(bounceFixed, key)) {
+      kind = 'bounceFixed';
+      fixedDir = bounceFixed[key];
+    } else if (bounceRandom.has(key)) kind = 'bounceRandom';
     else if (bounce.has(key)) kind = 'bounce';
-    drawTileSlab(ctx, t.x, t.y, vt, kind);
+    drawTileSlab(ctx, t.x, t.y, vt, kind, fixedDir);
   }
 
   drawCuboid(ctx, corners, vt, standing, alpha, glow);

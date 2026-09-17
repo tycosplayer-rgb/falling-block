@@ -34,9 +34,21 @@ export interface Level {
    */
   bounce?: string[];
   /**
+   * Fixed-direction bounce: key "x,y" → Dir.
+   * Landing lying on a listed cell immediately rolls once in that Dir
+   * (independent of input). Standing never bounces. Must also be in `tiles`.
+   */
+  bounceFixed?: Record<string, Dir>;
+  /**
+   * Random-direction bounce cells. Landing lying immediately rolls once in a
+   * random cardinal Dir. Standing never bounces. Must also be in `tiles`.
+   * Solver expands all 4 dirs (existential). Gameplay picks one at random.
+   */
+  bounceRandom?: string[];
+  /**
    * Trap tiles (假地板): listed in `tiles` so they RENDER as normal floors,
    * but do NOT support the block (treated as holes). Must be a subset of tiles.
-   * Must not overlap soft or bounce.
+   * Must not overlap soft / bounce / bounceFixed / bounceRandom.
    */
   trap?: string[];
   /**
@@ -54,5 +66,5 @@ export type Cell = { x: number; y: number };
 
 /** Outcome of one player input after special-tile resolution. */
 export type MoveResult =
-  | { ok: true; pose: Pose; bounced: boolean }
-  | { ok: false; pose: Pose; reason: 'fall' };
+  | { ok: true; pose: Pose; bounced: boolean; bounceDir?: Dir }
+  | { ok: false; pose: Pose; reason: 'fall'; bounced?: boolean; bounceDir?: Dir };

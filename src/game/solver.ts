@@ -1,4 +1,12 @@
-import { DIRS, applyMove, isSupported, isWin, poseKey, softSet, supportSet } from './logic';
+import {
+  DIRS,
+  applyMoveOutcomes,
+  isSupported,
+  isWin,
+  poseKey,
+  softSet,
+  supportSet,
+} from './logic';
 import type { Dir, Level, Pose } from './types';
 
 export interface SolveResult {
@@ -7,7 +15,13 @@ export interface SolveResult {
   nodes: number;
 }
 
-/** BFS shortest-path solver (includes soft / bounce / trap / hiddenSupport). */
+/**
+ * BFS shortest-path solver (soft / bounce / bounceFixed / bounceRandom /
+ * trap / hiddenSupport).
+ *
+ * Random bounce: expands all 4 cardinal outcomes (existential — solvable if
+ * some random results allow a win). Gameplay picks one dir at random.
+ */
 export function solveLevel(level: Level): SolveResult {
   const support = supportSet(level);
   const soft = softSet(level);
@@ -29,18 +43,20 @@ export function solveLevel(level: Level): SolveResult {
   while (qi < queue.length) {
     const cur = queue[qi++];
     for (const dir of DIRS) {
-      const result = applyMove(level, cur.pose, dir);
-      if (!result.ok) continue;
-      const next = result.pose;
-      const key = poseKey(next);
-      if (visited.has(key)) continue;
-      visited.add(key);
-      nodes++;
-      const path = cur.path.concat(dir);
-      if (isWin(next, level.target)) {
-        return { solvable: true, moves: path, nodes };
+      const outcomes = applyMoveOutcomes(level, cur.pose, dir);
+      for (const result of outcomes) {
+        if (!result.ok) continue;
+        const next = result.pose;
+        const key = poseKey(next);
+        if (visited.has(key)) continue;
+        visited.add(key);
+        nodes++;
+        const path = cur.path.concat(dir);
+        if (isWin(next, level.target)) {
+          return { solvable: true, moves: path, nodes };
+        }
+        queue.push({ pose: next, path });
       }
-      queue.push({ pose: next, path });
     }
   }
 

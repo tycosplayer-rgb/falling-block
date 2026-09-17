@@ -1,10 +1,13 @@
 import { LEVELS } from '../src/game/levels.ts';
 import {
   DIRS,
-  applyMove,
+  applyMoveOutcomes,
+  bounceFixedMap,
+  bounceRandomSet,
   bounceSet,
   isSupported,
   isWin,
+  poseKey,
   roll,
   softSet,
   supportSet,
@@ -14,7 +17,7 @@ import {
 } from '../src/game/logic.ts';
 import { tumblingCorners } from '../src/game/render.ts';
 import { solveLevel } from '../src/game/solver.ts';
-import type { Pose } from '../src/game/types.ts';
+import type { Dir, Level, Pose } from '../src/game/types.ts';
 
 function aabbOf(pose: Pose) {
   if (pose.ori === 'standing') {
@@ -59,6 +62,26 @@ function assertRollGeometry() {
 
 assertRollGeometry();
 
+/**
+ * Replay a move sequence allowing existential random-bounce branches:
+ * at each input, any successful outcome may continue (same as solver).
+ */
+function replayExists(level: Level, moves: Dir[]): boolean {
+  let poses: Pose[] = [{ ...level.start }];
+  for (const dir of moves) {
+    const nextMap = new Map<string, Pose>();
+    for (const p of poses) {
+      for (const step of applyMoveOutcomes(level, p, dir)) {
+        if (!step.ok) continue;
+        nextMap.set(poseKey(step.pose), step.pose);
+      }
+    }
+    if (nextMap.size === 0) return false;
+    poses = [...nextMap.values()];
+  }
+  return poses.some((p) => isWin(p, level.target));
+}
+
 let failed = 0;
 
 console.log(`Verifying ${LEVELS.length} levels…\n`);
@@ -68,9 +91,19 @@ for (let i = 0; i < LEVELS.length; i++) {
   const tiles = tileSet(level);
   const soft = softSet(level);
   const bounce = bounceSet(level);
+  const bounceFixed = bounceFixedMap(level);
+  const bounceRandom = bounceRandomSet(level);
   const traps = trapSet(level);
   const hidden = hiddenSupportSet(level);
   const support = supportSet(level);
+
+  const specialSets: { name: string; keys: string[] }[] = [
+    { name: 'soft', keys: [...soft] },
+    { name: 'bounce', keys: [...bounce] },
+    { name: 'bounceFixed', keys: Object.keys(bounceFixed) },
+    { name: 'bounceRandom', keys: [...bounceRandom] },
+    { name: 'trap', keys: [...traps] },
+  ];
 
   for (const s of level.soft ?? []) {
     if (!tiles.has(s)) {
@@ -84,18 +117,38 @@ for (let i = 0; i < LEVELS.length; i++) {
       failed++;
     }
   }
+  for (const b of Object.keys(bounceFixed)) {
+    if (!tiles.has(b)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: bounceFixed ${b} missing from tiles`);
+      failed++;
+    }
+  }
+  for (const b of level.bounceRandom ?? []) {
+    if (!tiles.has(b)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: bounceRandom ${b} missing from tiles`);
+      failed++;
+    }
+  }
+
+  // Mutual exclusion: soft / bounce / bounceFixed / bounceRandom / trap
+  const owner = new Map<string, string>();
+  for (const { name, keys } of specialSets) {
+    for (const k of keys) {
+      const prev = owner.get(k);
+      if (prev) {
+        console.error(
+          `✗ Level ${i + 1}「${level.name}」: cell ${k} in both ${prev} and ${name}`,
+        );
+        failed++;
+      } else {
+        owner.set(k, name);
+      }
+    }
+  }
 
   for (const t of level.trap ?? []) {
     if (!tiles.has(t)) {
       console.error(`✗ Level ${i + 1}「${level.name}」: trap ${t} missing from tiles`);
-      failed++;
-    }
-    if (soft.has(t)) {
-      console.error(`✗ Level ${i + 1}「${level.name}」: trap ${t} must not be soft`);
-      failed++;
-    }
-    if (bounce.has(t)) {
-      console.error(`✗ Level ${i + 1}「${level.name}」: trap ${t} must not be bounce`);
       failed++;
     }
   }
@@ -132,21 +185,8 @@ for (let i = 0; i < LEVELS.length; i++) {
     continue;
   }
 
-  let pose = { ...level.start };
-  for (const dir of result.moves) {
-    const step = applyMove(level, pose, dir);
-    if (!step.ok) {
-      console.error(`✗ Level ${i + 1}「${level.name}」: replay fell at move ${dir}`);
-      failed++;
-      pose = { x: -999, y: -999, ori: 'standing' };
-      break;
-    }
-    pose = step.pose;
-  }
-  if (pose.x === -999) continue;
-
-  if (!isWin(pose, level.target)) {
-    console.error(`✗ Level ${i + 1}「${level.name}」: replay did not finish on target`);
+  if (!replayExists(level, result.moves)) {
+    console.error(`✗ Level ${i + 1}「${level.name}」: existential replay did not finish on target`);
     failed++;
     continue;
   }
