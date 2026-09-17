@@ -89,19 +89,39 @@ export function bounceSet(level: Level): Set<string> {
   return new Set(level.bounce ?? []);
 }
 
+export function trapSet(level: Level): Set<string> {
+  return new Set(level.trap ?? []);
+}
+
+export function hiddenSupportSet(level: Level): Set<string> {
+  return new Set(level.hiddenSupport ?? []);
+}
+
+/**
+ * Cells that actually support the block:
+ * (tiles − trap) ∪ hiddenSupport
+ */
+export function supportSet(level: Level): Set<string> {
+  const support = new Set(level.tiles);
+  for (const t of level.trap ?? []) support.delete(t);
+  for (const h of level.hiddenSupport ?? []) support.add(h);
+  return support;
+}
+
 /**
  * Soft tiles only support a lying block.
  * Standing on any soft cell → collapse (unsupported).
+ * Support is checked against `support` (use supportSet), not raw tiles.
  */
 export function isSupported(
   pose: Pose,
-  tiles: Set<string>,
+  support: Set<string>,
   soft: Set<string> = new Set(),
 ): boolean {
   const cells = occupied(pose);
   for (const c of cells) {
     const key = cellKey(c.x, c.y);
-    if (!tiles.has(key)) return false;
+    if (!support.has(key)) return false;
     if (pose.ori === 'standing' && soft.has(key)) return false;
   }
   return true;
@@ -116,12 +136,12 @@ export function touchesBounce(pose: Pose, bounce: Set<string>): boolean {
  * Apply one player roll, resolving soft collapse and a single bounce rebound.
  */
 export function applyMove(level: Level, pose: Pose, dir: Dir): MoveResult {
-  const tiles = tileSet(level);
+  const support = supportSet(level);
   const soft = softSet(level);
   const bounce = bounceSet(level);
 
   let next = roll(pose, dir);
-  if (!isSupported(next, tiles, soft)) {
+  if (!isSupported(next, support, soft)) {
     return { ok: false, pose: next, reason: 'fall' };
   }
 
@@ -129,7 +149,7 @@ export function applyMove(level: Level, pose: Pose, dir: Dir): MoveResult {
   if (touchesBounce(next, bounce)) {
     const back = roll(next, opposite(dir));
     bounced = true;
-    if (!isSupported(back, tiles, soft)) {
+    if (!isSupported(back, support, soft)) {
       return { ok: false, pose: back, reason: 'fall' };
     }
     next = back;
@@ -153,7 +173,8 @@ export function boundsOf(level: Level): {
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
-  for (const t of level.tiles) {
+  const keys = [...level.tiles, ...(level.hiddenSupport ?? [])];
+  for (const t of keys) {
     const { x, y } = parseCell(t);
     if (x < minX) minX = x;
     if (x > maxX) maxX = x;

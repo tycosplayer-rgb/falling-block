@@ -9,7 +9,7 @@ import {
   opposite,
   roll,
   softSet,
-  tileSet,
+  supportSet,
   touchesBounce,
 } from './game/logic';
 import { LEVELS } from './game/levels';
@@ -133,9 +133,9 @@ function tryMove(dir: Dir) {
 
   const result = applyMove(level, pose, dir);
   const mid = roll(pose, dir); // landing pose before bounce (for animation)
-  const tiles = tileSet(level);
+  const support = supportSet(level);
   const soft = softSet(level);
-  const midSupported = isSupported(mid, tiles, soft);
+  const midSupported = isSupported(mid, support, soft);
 
   if (!result.ok) {
     startAnim('roll', pose, mid, dir, 190, () => {

@@ -2,11 +2,15 @@ import { LEVELS } from '../src/game/levels.ts';
 import {
   DIRS,
   applyMove,
+  bounceSet,
   isSupported,
   isWin,
   roll,
   softSet,
+  supportSet,
   tileSet,
+  trapSet,
+  hiddenSupportSet,
 } from '../src/game/logic.ts';
 import { tumblingCorners } from '../src/game/render.ts';
 import { solveLevel } from '../src/game/solver.ts';
@@ -63,6 +67,10 @@ for (let i = 0; i < LEVELS.length; i++) {
   const level = LEVELS[i];
   const tiles = tileSet(level);
   const soft = softSet(level);
+  const bounce = bounceSet(level);
+  const traps = trapSet(level);
+  const hidden = hiddenSupportSet(level);
+  const support = supportSet(level);
 
   for (const s of level.soft ?? []) {
     if (!tiles.has(s)) {
@@ -77,13 +85,41 @@ for (let i = 0; i < LEVELS.length; i++) {
     }
   }
 
+  for (const t of level.trap ?? []) {
+    if (!tiles.has(t)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: trap ${t} missing from tiles`);
+      failed++;
+    }
+    if (soft.has(t)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: trap ${t} must not be soft`);
+      failed++;
+    }
+    if (bounce.has(t)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: trap ${t} must not be bounce`);
+      failed++;
+    }
+  }
+
+  for (const h of level.hiddenSupport ?? []) {
+    if (tiles.has(h)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: hiddenSupport ${h} must not appear in tiles`);
+      failed++;
+    }
+  }
+
   if (!tiles.has(level.target)) {
     console.error(`✗ Level ${i + 1}「${level.name}」: target ${level.target} is not a solid tile`);
     failed++;
     continue;
   }
 
-  if (!isSupported(level.start, tiles, soft)) {
+  if (traps.has(level.target)) {
+    console.error(`✗ Level ${i + 1}「${level.name}」: target ${level.target} must not be a trap`);
+    failed++;
+    continue;
+  }
+
+  if (!isSupported(level.start, support, soft)) {
     console.error(`✗ Level ${i + 1}「${level.name}」: start pose has no support`);
     failed++;
     continue;

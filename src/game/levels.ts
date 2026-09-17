@@ -390,6 +390,103 @@ export const LEVELS: Level[] = [
     target: '32,2',
     start: { x: 0, y: 2, ori: 'standing' },
   },
+
+  // 24 — 镜花水月：直路假地板，须绕行
+  {
+    name: '镜花水月',
+    tiles: uniq([
+      ...rect(0, 0, 2, 2),
+      // tempting straight corridor (traps)
+      '3,1', '4,1', '5,1',
+      // real detour south
+      ...rect(0, 3, 2, 4),
+      ...rect(3, 4, 7, 5),
+      ...rect(6, 0, 8, 3),
+    ]),
+    trap: ['3,1', '4,1', '5,1'],
+    target: '8,1',
+    start: { x: 0, y: 1, ori: 'standing' },
+  },
+
+  // 25 — 虚桥：三格缺口仅靠隐形支撑跨越
+  {
+    name: '虚桥',
+    tiles: uniq([
+      ...rect(0, 0, 2, 2),
+      ...rect(6, 0, 8, 2),
+    ]),
+    hiddenSupport: ['3,1', '4,1', '5,1'],
+    target: '8,1',
+    start: { x: 0, y: 1, ori: 'standing' },
+  },
+
+  // 26 — 真假难辨：假地板挡直路 + 隐形侧桥
+  {
+    name: '真假难辨',
+    tiles: uniq([
+      ...rect(0, 1, 2, 3),
+      // fake straight path
+      '3,2', '4,2', '5,2', '6,2',
+      ...rect(7, 1, 9, 3),
+      // south banks for hidden bridge
+      ...rect(0, 4, 2, 5),
+      ...rect(7, 4, 9, 5),
+    ]),
+    trap: ['3,2', '4,2', '5,2', '6,2'],
+    hiddenSupport: ['3,5', '4,5', '5,5', '6,5'],
+    target: '9,2',
+    start: { x: 0, y: 2, ori: 'standing' },
+  },
+
+  // 27 — 暗河：长假地板河 + 南岸隐形桥
+  {
+    name: '暗河',
+    tiles: uniq([
+      ...rect(0, 0, 3, 2),
+      // long fake river (looks solid)
+      ...rect(4, 1, 13, 1),
+      ...rect(14, 0, 17, 2),
+      // southern banks
+      ...rect(1, 3, 3, 5),
+      ...rect(14, 3, 16, 5),
+      // north decoy spurs
+      ...rect(6, 0, 8, 0),
+      ...rect(10, 0, 12, 0),
+    ]),
+    trap: ['4,1', '5,1', '6,1', '7,1', '8,1', '9,1', '10,1', '11,1', '12,1', '13,1'],
+    hiddenSupport: ['4,5', '5,5', '6,5', '7,5', '8,5', '9,5', '10,5', '11,5', '12,5', '13,5'],
+    target: '17,1',
+    start: { x: 0, y: 1, ori: 'standing' },
+  },
+
+  // 28 — 迷雾终章：假地板、隐形桥、薄冰、弹门综合
+  {
+    name: '迷雾终章',
+    tiles: uniq([
+      ...rect(0, 1, 2, 3),
+      // fake mid corridor (traps)
+      '3,2', '4,2', '5,2',
+      ...rect(6, 0, 8, 4),
+      // soft bridge
+      '9,2', '10,2',
+      ...rect(11, 1, 13, 3),
+      // bounce gate
+      '14,2',
+      ...rect(15, 1, 17, 3),
+      // 2-wide south bypass; gap via hiddenSupport
+      ...rect(0, 4, 2, 6),
+      ...rect(6, 5, 8, 6),
+      // bounce decoys on mid island
+      '7,0', '7,4',
+    ]),
+    trap: ['3,2', '4,2', '5,2'],
+    hiddenSupport: ['3,6', '4,6', '5,6'],
+    soft: ['9,2', '10,2'],
+    bounce: ['14,2', '7,0', '7,4'],
+    target: '17,2',
+    start: { x: 0, y: 2, ori: 'standing' },
+  },
+
 ];
 
 export function getLevel(index: number): Level {

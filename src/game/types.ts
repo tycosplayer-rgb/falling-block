@@ -19,7 +19,7 @@ export interface Pose {
 export interface Level {
   /** Display name (Chinese). */
   name: string;
-  /** Solid floor tiles as "x,y" keys (includes soft / bounce cells). */
+  /** Solid floor tiles as "x,y" keys (includes soft / bounce / trap cells). */
   tiles: string[];
   /**
    * Soft tiles: only support the block when lying flat.
@@ -33,6 +33,17 @@ export interface Level {
    * Must also appear in `tiles`.
    */
   bounce?: string[];
+  /**
+   * Trap tiles (假地板): listed in `tiles` so they RENDER as normal floors,
+   * but do NOT support the block (treated as holes). Must be a subset of tiles.
+   * Must not overlap soft or bounce.
+   */
+  trap?: string[];
+  /**
+   * Hidden support (隐形支撑): NOT in `tiles` (render as empty),
+   * but DO support the block. Must not appear in tiles.
+   */
+  hiddenSupport?: string[];
   /** Target hole / goal tile. Must be standing upright on this cell to win. */
   target: string;
   /** Starting pose. */
