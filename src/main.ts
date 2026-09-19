@@ -92,6 +92,14 @@ function updateHud(now = performance.now()) {
   }
 }
 
+/** Stop countdown immediately (e.g. on clear) and hide the badge. */
+function stopTimer() {
+  timerStarted = false;
+  timerDeadline = null;
+  timerLabel.textContent = '';
+  timerLabel.classList.add('hidden');
+}
+
 function loadLevel(i: number) {
   levelIndex = Math.max(0, Math.min(LEVELS.length - 1, i));
   level = LEVELS[levelIndex];
@@ -278,6 +286,8 @@ function tryMove(dir: Dir) {
 
 function finishAfterLand(dir: Dir) {
   if (isWin(pose, level.target)) {
+    stopTimer();
+    updateHud();
     startAnim('win', pose, pose, dir, 520, () => {
       maxUnlocked = unlockAfterClear(levelIndex, LEVELS.length);
       if (levelIndex >= LEVELS.length - 1) {
@@ -359,14 +369,16 @@ function tick(now: number) {
     }
   }
 
-  // Countdown tick: HUD + expiry (like a fall)
-  if (timerStarted && !timerFailed && timerDeadline != null) {
+  // Countdown tick: HUD + expiry (like a fall). Skip once cleared.
+  if (
+    timerStarted &&
+    !timerFailed &&
+    timerDeadline != null &&
+    !isWin(pose, level.target) &&
+    !(anim && anim.kind === 'win')
+  ) {
     updateHud(now);
-    if (
-      remainingSeconds(now) <= 0 &&
-      !isWin(pose, level.target) &&
-      !(anim && anim.kind === 'win')
-    ) {
+    if (remainingSeconds(now) <= 0) {
       failTimer();
     }
   }
