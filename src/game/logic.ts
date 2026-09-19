@@ -105,6 +105,80 @@ export function hiddenSupportSet(level: Level): Set<string> {
   return new Set(level.hiddenSupport ?? []);
 }
 
+export function timerStartSet(level: Level): Set<string> {
+  return new Set(level.timerStart ?? []);
+}
+
+export function timeMinusSet(level: Level): Set<string> {
+  return new Set(level.timeMinus ?? []);
+}
+
+export function timePlusSet(level: Level): Set<string> {
+  return new Set(level.timePlus ?? []);
+}
+
+/** Default countdown seconds when Level.timerSeconds is omitted. */
+export const DEFAULT_TIMER_SECONDS = 45;
+
+export function timerDuration(level: Level): number {
+  return level.timerSeconds ?? DEFAULT_TIMER_SECONDS;
+}
+
+/**
+ * Cells that must not host a relocating +5 tile (specials + traps + current).
+ * Target and occupied cells are filtered by the caller.
+ */
+export function plusRelocateBlocked(level: Level): Set<string> {
+  const blocked = new Set<string>();
+  for (const s of level.soft ?? []) blocked.add(s);
+  for (const s of level.bounce ?? []) blocked.add(s);
+  for (const s of Object.keys(level.bounceFixed ?? {})) blocked.add(s);
+  for (const s of level.bounceRandom ?? []) blocked.add(s);
+  for (const s of level.trap ?? []) blocked.add(s);
+  for (const s of level.timerStart ?? []) blocked.add(s);
+  for (const s of level.timeMinus ?? []) blocked.add(s);
+  return blocked;
+}
+
+function chebyshev(a: string, b: string): number {
+  const pa = parseCell(a);
+  const pb = parseCell(b);
+  return Math.max(Math.abs(pa.x - pb.x), Math.abs(pa.y - pb.y));
+}
+
+/**
+ * Pick a new +5 cell: floor solid in tiles, not blocked specials, not occupied,
+ * not current plus, not target. Prefer maximum Chebyshev distance from `from`.
+ */
+export function pickPlusRelocate(
+  level: Level,
+  from: string,
+  occupiedKeys: Set<string>,
+): string | null {
+  const support = supportSet(level);
+  const blocked = plusRelocateBlocked(level);
+  const candidates: string[] = [];
+  for (const t of level.tiles) {
+    if (t === from) continue;
+    if (t === level.target) continue;
+    if (blocked.has(t)) continue;
+    if (!support.has(t)) continue;
+    if (occupiedKeys.has(t)) continue;
+    candidates.push(t);
+  }
+  if (candidates.length === 0) return null;
+  let best = candidates[0]!;
+  let bestDist = -1;
+  for (const c of candidates) {
+    const d = chebyshev(from, c);
+    if (d > bestDist) {
+      bestDist = d;
+      best = c;
+    }
+  }
+  return best;
+}
+
 /**
  * Cells that actually support the block:
  * (tiles − trap) ∪ hiddenSupport

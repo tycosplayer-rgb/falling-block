@@ -521,6 +521,116 @@ export const LEVELS: Level[] = [
     start: { x: 0, y: 3, ori: 'standing' },
   },
 
+  // 31 — 沙漏启动：必经计时起点，启动后奔向终点
+  {
+    name: '沙漏启动',
+    tiles: uniq([
+      ...rect(0, 1, 2, 3),
+      '3,2', // timerStart on the only bridge
+      ...rect(4, 1, 6, 3),
+      ...rect(7, 2, 10, 2),
+      ...rect(9, 1, 11, 3),
+    ]),
+    timerStart: ['3,2'],
+    timerSeconds: 40,
+    target: '11,2',
+    start: { x: 0, y: 2, ori: 'standing' },
+  },
+
+  // 32 — 倒计时峡谷：主路铺 −5，可绕南廊或硬吃惩罚
+  {
+    name: '倒计时峡谷',
+    tiles: uniq([
+      ...rect(0, 1, 2, 3),
+      // main canyon path with timeMinus
+      '3,2', '4,2', '5,2', '6,2',
+      ...rect(7, 1, 9, 3),
+      // south bypass (safer, longer)
+      ...rect(0, 4, 2, 5),
+      ...rect(3, 5, 6, 5),
+      ...rect(7, 4, 9, 5),
+    ]),
+    timerStart: ['2,2', '0,4'],
+    timeMinus: ['3,2', '4,2', '5,2', '6,2'],
+    timerSeconds: 45,
+    target: '9,2',
+    start: { x: 0, y: 2, ori: 'standing' },
+  },
+
+  // 33 — 续命石：启动后需蹭 +5 续命再赶路（+5 会跳走）
+  {
+    name: '续命石',
+    tiles: uniq([
+      ...rect(0, 1, 2, 3),
+      '3,2',
+      ...rect(4, 0, 6, 4),
+      '7,2',
+      ...rect(8, 1, 10, 3),
+      ...rect(11, 2, 14, 2),
+      ...rect(13, 1, 15, 3),
+      // extra floor cells so +5 has room to relocate far
+      ...rect(4, 5, 6, 5),
+      ...rect(8, 5, 10, 5),
+    ]),
+    timerStart: ['3,2'],
+    timePlus: ['5,2'],
+    timerSeconds: 30,
+    target: '15,2',
+    start: { x: 0, y: 2, ori: 'standing' },
+  },
+
+  // 34 — 时限迷阵：启动 / −5 / +5 混布，需择路
+  {
+    name: '时限迷阵',
+    tiles: uniq([
+      ...rect(0, 2, 2, 4),
+      ...rect(3, 1, 5, 5),
+      ...rect(6, 2, 8, 4),
+      ...rect(9, 1, 11, 3),
+      ...rect(12, 2, 14, 4),
+      // north spur for plus relocate targets
+      ...rect(3, 0, 5, 0),
+      ...rect(9, 0, 11, 0),
+      // south spur
+      ...rect(6, 5, 8, 6),
+      ...rect(12, 5, 14, 5),
+    ]),
+    timerStart: ['1,3'],
+    timeMinus: ['4,2', '4,4', '7,3'],
+    timePlus: ['10,2'],
+    timerSeconds: 40,
+    target: '14,3',
+    start: { x: 0, y: 3, ori: 'standing' },
+  },
+
+  // 35 — 最后一秒：更长赛道，−5 卡口 + 续命石，综合考验
+  {
+    name: '最后一秒',
+    tiles: uniq([
+      ...rect(0, 2, 2, 4),
+      '3,3',
+      ...rect(4, 1, 6, 5),
+      '7,3',
+      ...rect(8, 2, 10, 4),
+      // minus choke on east bridge
+      '11,3', '12,3',
+      ...rect(13, 1, 15, 5),
+      ...rect(16, 3, 18, 3),
+      ...rect(17, 1, 19, 5),
+      // relocate pads
+      ...rect(4, 0, 6, 0),
+      ...rect(8, 6, 10, 6),
+      ...rect(13, 0, 15, 0),
+      ...rect(13, 6, 15, 6),
+    ]),
+    timerStart: ['3,3'],
+    timeMinus: ['11,3', '12,3', '5,3'],
+    timePlus: ['9,3'],
+    timerSeconds: 50,
+    target: '19,3',
+    start: { x: 0, y: 3, ori: 'standing' },
+  },
+
 ];
 
 export function getLevel(index: number): Level {

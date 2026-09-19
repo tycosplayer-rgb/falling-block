@@ -56,6 +56,24 @@ export interface Level {
    * but DO support the block. Must not appear in tiles.
    */
   hiddenSupport?: string[];
+  /**
+   * Timer start tiles: first contact in a life starts the countdown.
+   * Standing or lying both count. Must also appear in `tiles`.
+   */
+  timerStart?: string[];
+  /**
+   * Time-minus tiles: contact while timer active subtracts 5 seconds.
+   * Multiple times OK. Must also appear in `tiles`.
+   */
+  timeMinus?: string[];
+  /**
+   * Time-plus tiles (initial positions): contact while timer active adds 5s
+   * then relocates. Runtime tracks current cell separately.
+   * Must also appear in `tiles`.
+   */
+  timePlus?: string[];
+  /** Countdown duration in seconds when timer starts (default 45). */
+  timerSeconds?: number;
   /** Target hole / goal tile. Must be standing upright on this cell to win. */
   target: string;
   /** Starting pose. */

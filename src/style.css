@@ -72,6 +72,19 @@ body {
   flex: 0 0 auto;
 }
 
+.timer-badge {
+  background: #134e4a;
+  color: #99f6e4;
+  border: 1px solid #2dd4bf55;
+  font-variant-numeric: tabular-nums;
+  min-width: 4.5em;
+  justify-content: center;
+}
+
+.timer-badge.hidden {
+  display: none;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

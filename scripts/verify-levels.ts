@@ -14,6 +14,9 @@ import {
   tileSet,
   trapSet,
   hiddenSupportSet,
+  timerStartSet,
+  timeMinusSet,
+  timePlusSet,
 } from '../src/game/logic.ts';
 import { tumblingCorners } from '../src/game/render.ts';
 import { solveLevel } from '../src/game/solver.ts';
@@ -96,6 +99,9 @@ for (let i = 0; i < LEVELS.length; i++) {
   const traps = trapSet(level);
   const hidden = hiddenSupportSet(level);
   const support = supportSet(level);
+  const timerStarts = timerStartSet(level);
+  const timeMinuses = timeMinusSet(level);
+  const timePluses = timePlusSet(level);
 
   const specialSets: { name: string; keys: string[] }[] = [
     { name: 'soft', keys: [...soft] },
@@ -103,6 +109,9 @@ for (let i = 0; i < LEVELS.length; i++) {
     { name: 'bounceFixed', keys: Object.keys(bounceFixed) },
     { name: 'bounceRandom', keys: [...bounceRandom] },
     { name: 'trap', keys: [...traps] },
+    { name: 'timerStart', keys: [...timerStarts] },
+    { name: 'timeMinus', keys: [...timeMinuses] },
+    { name: 'timePlus', keys: [...timePluses] },
   ];
 
   for (const s of level.soft ?? []) {
@@ -129,8 +138,26 @@ for (let i = 0; i < LEVELS.length; i++) {
       failed++;
     }
   }
+  for (const t of level.timerStart ?? []) {
+    if (!tiles.has(t)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: timerStart ${t} missing from tiles`);
+      failed++;
+    }
+  }
+  for (const t of level.timeMinus ?? []) {
+    if (!tiles.has(t)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: timeMinus ${t} missing from tiles`);
+      failed++;
+    }
+  }
+  for (const t of level.timePlus ?? []) {
+    if (!tiles.has(t)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: timePlus ${t} missing from tiles`);
+      failed++;
+    }
+  }
 
-  // Mutual exclusion: soft / bounce / bounceFixed / bounceRandom / trap
+  // Mutual exclusion: soft / bounce* / trap / timerStart / timeMinus / timePlus
   const owner = new Map<string, string>();
   for (const { name, keys } of specialSets) {
     for (const k of keys) {

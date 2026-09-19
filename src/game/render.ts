@@ -424,7 +424,7 @@ function drawCuboid(
   ctx.restore();
 }
 
-type TileKind = 'floor' | 'target' | 'soft' | 'bounce' | 'bounceFixed' | 'bounceRandom';
+type TileKind = 'floor' | 'target' | 'soft' | 'bounce' | 'bounceFixed' | 'bounceRandom' | 'timerStart' | 'timeMinus' | 'timePlus';
 
 const FIXED_ARROW: Record<Dir, string> = {
   N: '▲',
@@ -473,6 +473,21 @@ function drawTileSlab(
     topFill = checker ? '#d8b4fe' : '#a855f7';
     sideE = '#7e22ce';
     sideS = '#6b21a8';
+  } else if (kind === 'timerStart') {
+    // Teal / cyan hourglass
+    topFill = checker ? '#5eead4' : '#2dd4bf';
+    sideE = '#0f766e';
+    sideS = '#115e59';
+  } else if (kind === 'timeMinus') {
+    // Red-ish −5
+    topFill = checker ? '#fca5a5' : '#f87171';
+    sideE = '#dc2626';
+    sideS = '#b91c1c';
+  } else if (kind === 'timePlus') {
+    // Green +5
+    topFill = checker ? '#86efac' : '#4ade80';
+    sideE = '#16a34a';
+    sideS = '#15803d';
   } else {
     topFill = checker ? '#4b6a96' : '#3e5a82';
     sideE = '#243552';
@@ -538,6 +553,27 @@ function drawTileSlab(
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(255,255,255,0.95)';
     ctx.fillText('？', c.sx, c.sy);
+  } else if (kind === 'timerStart') {
+    const c = project({ x: x + 0.5, y: y + 0.5, z: 0.04 }, vt);
+    ctx.font = `bold ${Math.max(10, vt.tile * 0.36)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(15,40,40,0.92)';
+    ctx.fillText('⏱', c.sx, c.sy);
+  } else if (kind === 'timeMinus') {
+    const c = project({ x: x + 0.5, y: y + 0.5, z: 0.04 }, vt);
+    ctx.font = `bold ${Math.max(11, vt.tile * 0.38)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillText('−5', c.sx, c.sy);
+  } else if (kind === 'timePlus') {
+    const c = project({ x: x + 0.5, y: y + 0.5, z: 0.04 }, vt);
+    ctx.font = `bold ${Math.max(11, vt.tile * 0.38)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(20,50,30,0.95)';
+    ctx.fillText('+5', c.sx, c.sy);
   }
 }
 
@@ -587,6 +623,13 @@ function centroid(corners: Vec3[]): Vec3 {
   return { x: x / n, y: y / n, z: z / n };
 }
 
+export interface DrawExtras {
+  /** Runtime location of the +5 tile (null = none). */
+  plusCell?: string | null;
+  /** Whether the life countdown is running (unused for draw; reserved). */
+  timerActive?: boolean;
+}
+
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
   level: Level,
@@ -594,6 +637,7 @@ export function drawFrame(
   anim: AnimState | null,
   width: number,
   height: number,
+  extras: DrawExtras = {},
 ) {
   ctx.clearRect(0, 0, width, height);
 
@@ -615,6 +659,12 @@ export function drawFrame(
   const bounce = new Set(level.bounce ?? []);
   const bounceFixed = level.bounceFixed ?? {};
   const bounceRandom = new Set(level.bounceRandom ?? []);
+  const timerStart = new Set(level.timerStart ?? []);
+  const timeMinus = new Set(level.timeMinus ?? []);
+  const plusCell =
+    extras.plusCell !== undefined
+      ? extras.plusCell
+      : (level.timePlus?.[0] ?? null);
 
   for (const t of tiles) {
     const key = `${t.x},${t.y}`;
@@ -627,6 +677,9 @@ export function drawFrame(
       fixedDir = bounceFixed[key];
     } else if (bounceRandom.has(key)) kind = 'bounceRandom';
     else if (bounce.has(key)) kind = 'bounce';
+    else if (timerStart.has(key)) kind = 'timerStart';
+    else if (timeMinus.has(key)) kind = 'timeMinus';
+    else if (plusCell === key) kind = 'timePlus';
     drawTileSlab(ctx, t.x, t.y, vt, kind, fixedDir);
   }
 

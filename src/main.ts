@@ -5,9 +5,14 @@ import {
   clonePose,
   isSupported,
   isWin,
+  occupied,
+  pickPlusRelocate,
   roll,
   softSet,
   supportSet,
+  timeMinusSet,
+  timerDuration,
+  timerStartSet,
 } from './game/logic';
 import { LEVELS } from './game/levels';
 import {
@@ -31,6 +36,7 @@ const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 const levelLabel = document.getElementById('level-label') as HTMLButtonElement;
 const movesLabel = document.getElementById('moves-label')!;
+const timerLabel = document.getElementById('timer-label')!;
 const btnRestart = document.getElementById('btn-restart') as HTMLButtonElement;
 const levelSelect = document.getElementById('level-select')!;
 const levelGrid = document.getElementById('level-grid')!;
@@ -50,6 +56,12 @@ let animStarted = 0;
 let animDuration = 0;
 let pendingAfterAnim: (() => void) | null = null;
 
+/** Timer: once per life; deadline via performance.now(). */
+let timerStarted = false;
+let timerDeadline: number | null = null;
+let plusCell: string | null = null;
+let timerFailed = false;
+
 function resize() {
   const wrap = canvas.parentElement!;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -62,9 +74,22 @@ function resize() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-function updateHud() {
+function remainingSeconds(now = performance.now()): number {
+  if (!timerStarted || timerDeadline == null) return 0;
+  return Math.max(0, (timerDeadline - now) / 1000);
+}
+
+function updateHud(now = performance.now()) {
   levelLabel.textContent = `关卡${levelIndex + 1}·${level.name}`;
   movesLabel.textContent = `步数${moves}`;
+  if (timerStarted && timerDeadline != null && !timerFailed) {
+    const sec = remainingSeconds(now);
+    timerLabel.textContent = `限时 ${sec.toFixed(1)}`;
+    timerLabel.classList.remove('hidden');
+  } else {
+    timerLabel.textContent = '';
+    timerLabel.classList.add('hidden');
+  }
 }
 
 function loadLevel(i: number) {
@@ -75,6 +100,10 @@ function loadLevel(i: number) {
   busy = false;
   anim = null;
   pendingAfterAnim = null;
+  timerStarted = false;
+  timerDeadline = null;
+  timerFailed = false;
+  plusCell = level.timePlus?.[0] ?? null;
   hideOverlay();
   updateHud();
   saveLastLevelIndex(levelIndex);
@@ -125,8 +154,62 @@ function startAnim(
   }
 }
 
+function poseTouches(pose: Pose, cells: Set<string>): boolean {
+  return occupied(pose).some((c) => cells.has(cellKey(c.x, c.y)));
+}
+
+/**
+ * After a move settles on `pose` (standing or lying), apply timer contacts once.
+ * Order: start → minus → plus (plus relocates after +5).
+ */
+function processTimerContacts(p: Pose) {
+  if (timerFailed) return;
+
+  const starts = timerStartSet(level);
+  if (!timerStarted && poseTouches(p, starts)) {
+    timerStarted = true;
+    timerDeadline = performance.now() + timerDuration(level) * 1000;
+  }
+
+  if (!timerStarted || timerDeadline == null) {
+    updateHud();
+    return;
+  }
+
+  const minus = timeMinusSet(level);
+  if (poseTouches(p, minus)) {
+    timerDeadline = Math.max(performance.now(), timerDeadline - 5000);
+  }
+
+  if (plusCell && poseTouches(p, new Set([plusCell]))) {
+    timerDeadline = timerDeadline + 5000;
+    const occ = new Set(occupied(p).map((c) => cellKey(c.x, c.y)));
+    const next = pickPlusRelocate(level, plusCell, occ);
+    plusCell = next;
+  }
+
+  updateHud();
+  if (remainingSeconds() <= 0) {
+    failTimer();
+  }
+}
+
+function failTimer() {
+  if (timerFailed) return;
+  // Do not interrupt a win celebration / overlay
+  if (isWin(pose, level.target)) return;
+  if (anim && anim.kind === 'win') return;
+  if (!overlay.classList.contains('hidden')) return;
+  timerFailed = true;
+  busy = true;
+  anim = null;
+  pendingAfterAnim = null;
+  updateHud();
+  showOverlay('时间到！', '重新开始', () => loadLevel(levelIndex));
+}
+
 function tryMove(dir: Dir) {
-  if (busy || !overlay.classList.contains('hidden') || isLevelSelectOpen()) return;
+  if (busy || timerFailed || !overlay.classList.contains('hidden') || isLevelSelectOpen()) return;
 
   const result = applyMove(level, pose, dir);
   const mid = roll(pose, dir); // landing pose before bounce (for animation)
@@ -138,6 +221,9 @@ function tryMove(dir: Dir) {
   if (!result.ok) {
     startAnim('roll', pose, mid, dir, 190, () => {
       if (midSupported && result.bounced && bounceDir) {
+        // Mid-landing counts for timer (even if rebound fails)
+        processTimerContacts(mid);
+        if (timerFailed) return;
         // Landed on bounce then rebound into void / soft collapse
         playBounce();
         startAnim('roll', mid, result.pose, bounceDir, 160, () => {
@@ -146,6 +232,9 @@ function tryMove(dir: Dir) {
           });
         });
       } else {
+        // Failed landing still contacts cells occupied by mid
+        processTimerContacts(mid);
+        if (timerFailed) return;
         const softCollapse =
           mid.ori === 'standing' && soft.has(cellKey(mid.x, mid.y));
         startAnim('fall', mid, mid, dir, 460, () => {
@@ -165,16 +254,22 @@ function tryMove(dir: Dir) {
 
   startAnim('roll', pose, mid, dir, 210, () => {
     if (didBounce && bounceDir) {
+      processTimerContacts(mid);
+      if (timerFailed) return;
       playBounce();
       startAnim('roll', mid, landed, bounceDir, 180, () => {
         pose = landed;
         moves += 1;
+        processTimerContacts(landed);
+        if (timerFailed) return;
         updateHud();
         finishAfterLand(dir);
       });
     } else {
       pose = landed;
       moves += 1;
+      processTimerContacts(landed);
+      if (timerFailed) return;
       updateHud();
       finishAfterLand(dir);
     }
@@ -264,8 +359,23 @@ function tick(now: number) {
     }
   }
 
+  // Countdown tick: HUD + expiry (like a fall)
+  if (timerStarted && !timerFailed && timerDeadline != null) {
+    updateHud(now);
+    if (
+      remainingSeconds(now) <= 0 &&
+      !isWin(pose, level.target) &&
+      !(anim && anim.kind === 'win')
+    ) {
+      failTimer();
+    }
+  }
+
   const wrap = canvas.parentElement!;
-  drawFrame(ctx, level, pose, anim, wrap.clientWidth, wrap.clientHeight);
+  drawFrame(ctx, level, pose, anim, wrap.clientWidth, wrap.clientHeight, {
+    plusCell,
+    timerActive: timerStarted && !timerFailed,
+  });
   requestAnimationFrame(tick);
 }
 
