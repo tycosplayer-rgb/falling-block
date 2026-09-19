@@ -575,6 +575,8 @@ export const LEVELS: Level[] = [
     timerStart: ['3,2'],
     timePlus: ['5,2'],
     timerSeconds: 30,
+    // bridge far +5 relocate pad (8–10,5) so it stays visually detached
+    hiddenSupport: ['8,4', '9,4', '10,4'],
     target: '15,2',
     start: { x: 0, y: 2, ori: 'standing' },
   },
@@ -627,12 +629,15 @@ export const LEVELS: Level[] = [
     timeMinus: ['11,3', '12,3', '5,3'],
     timePlus: ['9,3'],
     timerSeconds: 50,
+    // bridge far +5 relocate pad (8–10,6) so it stays visually detached
+    hiddenSupport: ['8,5', '9,5', '10,5'],
     target: '19,3',
     start: { x: 0, y: 3, ori: 'standing' },
   },
 
   // 36 — 万花筒：变格改地图（北/南/中直/南绕），必经变格且变后仍有解
   // Layouts share start island + morph choke (3,2)/(4,2); bridges differ.
+  // Orphan decorative y=6 strips / mid islands removed (must be 4-connected via tiles∪hiddenSupport).
   {
     name: '万花筒',
     tiles: uniq([
@@ -642,9 +647,6 @@ export const LEVELS: Level[] = [
       ...rect(7, 1, 12, 2),
       ...rect(13, 1, 15, 3),
       ...rect(8, 0, 10, 0),
-      ...rect(0, 6, 2, 6),
-      ...rect(8, 6, 10, 6),
-      ...rect(13, 6, 15, 6),
     ]),
     mapMorph: ['4,2'],
     mapLayouts: [
@@ -656,9 +658,6 @@ export const LEVELS: Level[] = [
         ...rect(7, 2, 12, 3),
         ...rect(13, 1, 15, 3),
         ...rect(8, 4, 10, 4),
-        ...rect(0, 6, 2, 6),
-        ...rect(8, 6, 10, 6),
-        ...rect(13, 6, 15, 6),
       ]),
       // L2 — open center corridor
       uniq([
@@ -666,10 +665,6 @@ export const LEVELS: Level[] = [
         '3,2', '4,2',
         ...rect(5, 1, 12, 3),
         ...rect(13, 1, 15, 3),
-        ...rect(7, 5, 9, 5),
-        ...rect(0, 6, 2, 6),
-        ...rect(8, 6, 10, 6),
-        ...rect(13, 6, 15, 6),
       ]),
       // L3 — south detour then up to target
       uniq([
@@ -681,9 +676,6 @@ export const LEVELS: Level[] = [
         ...rect(12, 2, 12, 3),
         '7,1', '7,2', '7,3', '8,2',
         ...rect(13, 1, 15, 3),
-        ...rect(0, 6, 2, 6),
-        ...rect(8, 6, 10, 6),
-        ...rect(13, 6, 15, 6),
       ]),
     ],
     target: '14,2',

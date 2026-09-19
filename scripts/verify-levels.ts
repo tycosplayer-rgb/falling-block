@@ -88,6 +88,36 @@ function replayExists(level: Level, moves: Dir[]): boolean {
   return poses.some((p) => isWin(p, level.target));
 }
 
+
+/** 4-neighbor connectivity on tiles ∪ hiddenSupport; all tiles must be reachable from start. */
+function orphanTiles(tiles: string[], hidden: Iterable<string>, start: { x: number; y: number }): string[] {
+  const graph = new Set<string>([...tiles, ...hidden]);
+  const startKey = `${start.x},${start.y}`;
+  const seed = graph.has(startKey) ? startKey : tiles[0];
+  if (!seed) return [];
+  const seen = new Set<string>();
+  const q: string[] = [seed];
+  seen.add(seed);
+  const neigh = [
+    [0, 1],
+    [0, -1],
+    [1, 0],
+    [-1, 0],
+  ] as const;
+  while (q.length) {
+    const k = q.shift()!;
+    const [x, y] = k.split(',').map(Number) as [number, number];
+    for (const [dx, dy] of neigh) {
+      const nk = `${x + dx},${y + dy}`;
+      if (graph.has(nk) && !seen.has(nk)) {
+        seen.add(nk);
+        q.push(nk);
+      }
+    }
+  }
+  return tiles.filter((t) => !seen.has(t));
+}
+
 let failed = 0;
 
 console.log(`Verifying ${LEVELS.length} levels…\n`);
@@ -217,6 +247,19 @@ for (let i = 0; i < LEVELS.length; i++) {
     continue;
   }
 
+
+  // Floor connectivity: every tile reachable from start via tiles ∪ hiddenSupport (4-neigh)
+  {
+    const orphans = orphanTiles([...tiles], hidden, level.start);
+    if (orphans.length) {
+      console.error(
+        `✗ Level ${i + 1}「${level.name}」: isolated floor tiles (not 4-connected via tiles∪hiddenSupport): ${orphans.join(' ')}`,
+      );
+      failed++;
+      continue;
+    }
+  }
+
   const result = solveLevel(level);
   if (!result.solvable || !result.moves) {
     console.error(`✗ Level ${i + 1}「${level.name}」: UNSOLVABLE (explored ${result.nodes} nodes)`);
@@ -260,6 +303,18 @@ for (let i = 0; i < LEVELS.length; i++) {
         failed++;
         layoutFail = true;
         continue;
+      }
+
+      {
+        const orphans = orphanTiles(L, hidden, level.start);
+        if (orphans.length) {
+          console.error(
+            `✗ Level ${i + 1}「${level.name}」: layout ${li} isolated floor tiles: ${orphans.join(' ')}`,
+          );
+          failed++;
+          layoutFail = true;
+          continue;
+        }
       }
       // Prefer morph cell present in layout when authored in mapMorph
       for (const m of mapMorphs) {
