@@ -631,6 +631,65 @@ export const LEVELS: Level[] = [
     start: { x: 0, y: 3, ori: 'standing' },
   },
 
+  // 36 — 万花筒：变格改地图（北/南/中直/南绕），必经变格且变后仍有解
+  // Layouts share start island + morph choke (3,2)/(4,2); bridges differ.
+  {
+    name: '万花筒',
+    tiles: uniq([
+      ...rect(0, 1, 2, 3),
+      '3,2', '4,2', // choke; 4,2 = morph
+      ...rect(5, 1, 6, 3),
+      ...rect(7, 1, 12, 2),
+      ...rect(13, 1, 15, 3),
+      ...rect(8, 0, 10, 0),
+      ...rect(0, 6, 2, 6),
+      ...rect(8, 6, 10, 6),
+      ...rect(13, 6, 15, 6),
+    ]),
+    mapMorph: ['4,2'],
+    mapLayouts: [
+      // L1 — south bridge + south spur
+      uniq([
+        ...rect(0, 1, 2, 3),
+        '3,2', '4,2',
+        ...rect(5, 1, 6, 3),
+        ...rect(7, 2, 12, 3),
+        ...rect(13, 1, 15, 3),
+        ...rect(8, 4, 10, 4),
+        ...rect(0, 6, 2, 6),
+        ...rect(8, 6, 10, 6),
+        ...rect(13, 6, 15, 6),
+      ]),
+      // L2 — open center corridor
+      uniq([
+        ...rect(0, 1, 2, 3),
+        '3,2', '4,2',
+        ...rect(5, 1, 12, 3),
+        ...rect(13, 1, 15, 3),
+        ...rect(7, 5, 9, 5),
+        ...rect(0, 6, 2, 6),
+        ...rect(8, 6, 10, 6),
+        ...rect(13, 6, 15, 6),
+      ]),
+      // L3 — south detour then up to target
+      uniq([
+        ...rect(0, 1, 2, 3),
+        '3,2', '4,2',
+        ...rect(5, 1, 6, 3),
+        ...rect(5, 3, 6, 5),
+        ...rect(7, 4, 12, 5),
+        ...rect(12, 2, 12, 3),
+        '7,1', '7,2', '7,3', '8,2',
+        ...rect(13, 1, 15, 3),
+        ...rect(0, 6, 2, 6),
+        ...rect(8, 6, 10, 6),
+        ...rect(13, 6, 15, 6),
+      ]),
+    ],
+    target: '14,2',
+    start: { x: 0, y: 2, ori: 'standing' },
+  },
+
 ];
 
 export function getLevel(index: number): Level {

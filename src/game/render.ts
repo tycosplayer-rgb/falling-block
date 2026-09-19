@@ -424,7 +424,7 @@ function drawCuboid(
   ctx.restore();
 }
 
-type TileKind = 'floor' | 'target' | 'soft' | 'bounce' | 'bounceFixed' | 'bounceRandom' | 'timerStart' | 'timeMinus' | 'timePlus';
+type TileKind = 'floor' | 'target' | 'soft' | 'bounce' | 'bounceFixed' | 'bounceRandom' | 'timerStart' | 'timeMinus' | 'timePlus' | 'mapMorph';
 
 const FIXED_ARROW: Record<Dir, string> = {
   N: '▲',
@@ -488,6 +488,11 @@ function drawTileSlab(
     topFill = checker ? '#86efac' : '#4ade80';
     sideE = '#16a34a';
     sideS = '#15803d';
+  } else if (kind === 'mapMorph') {
+    // Cyan / indigo swirl 「变」
+    topFill = checker ? '#67e8f9' : '#22d3ee';
+    sideE = '#0891b2';
+    sideS = '#0e7490';
   } else {
     topFill = checker ? '#4b6a96' : '#3e5a82';
     sideE = '#243552';
@@ -574,6 +579,19 @@ function drawTileSlab(
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(20,50,30,0.95)';
     ctx.fillText('+5', c.sx, c.sy);
+  } else if (kind === 'mapMorph') {
+    const c = project({ x: x + 0.5, y: y + 0.5, z: 0.04 }, vt);
+    // Swirl arc
+    ctx.beginPath();
+    ctx.arc(c.sx, c.sy, vt.tile * 0.2, 0.2, Math.PI * 1.4);
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = Math.max(1.4, vt.tile * 0.05);
+    ctx.stroke();
+    ctx.font = `bold ${Math.max(10, vt.tile * 0.34)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(8,40,50,0.95)';
+    ctx.fillText('变', c.sx, c.sy);
   }
 }
 
@@ -626,8 +644,12 @@ function centroid(corners: Vec3[]): Vec3 {
 export interface DrawExtras {
   /** Runtime location of the +5 tile (null = none). */
   plusCell?: string | null;
+  /** Runtime location of the map-morph pad (null = none). */
+  morphCell?: string | null;
   /** Whether the life countdown is running (unused for draw; reserved). */
   timerActive?: boolean;
+  /** Brief flash after a map morph. */
+  morphFlash?: boolean;
 }
 
 export function drawFrame(
@@ -665,6 +687,10 @@ export function drawFrame(
     extras.plusCell !== undefined
       ? extras.plusCell
       : (level.timePlus?.[0] ?? null);
+  const morphCell =
+    extras.morphCell !== undefined
+      ? extras.morphCell
+      : (level.mapMorph?.[0] ?? null);
 
   for (const t of tiles) {
     const key = `${t.x},${t.y}`;
@@ -680,7 +706,15 @@ export function drawFrame(
     else if (timerStart.has(key)) kind = 'timerStart';
     else if (timeMinus.has(key)) kind = 'timeMinus';
     else if (plusCell === key) kind = 'timePlus';
+    else if (morphCell === key) kind = 'mapMorph';
     drawTileSlab(ctx, t.x, t.y, vt, kind, fixedDir);
+  }
+
+  if (extras.morphFlash) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(34, 211, 238, 0.18)';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
   }
 
   drawCuboid(ctx, corners, vt, standing, alpha, glow);

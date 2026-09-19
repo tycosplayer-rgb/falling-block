@@ -1,15 +1,20 @@
 import { attachControls } from './game/input';
 import {
+  allLayouts,
   applyMove,
+  canPlaceMorph,
   cellKey,
   clonePose,
   isSupported,
   isWin,
+  levelForTiles,
   occupied,
+  pickMorphRelocate,
   pickPlusRelocate,
   roll,
   softSet,
   supportSet,
+  tilesEqual,
   timeMinusSet,
   timerDuration,
   timerStartSet,
@@ -25,11 +30,13 @@ import { drawFrame, resetCamera, type AnimState } from './game/render';
 import {
   playBounce,
   playFall,
+  playMorph,
   playRoll,
   playVictory,
   playWin,
   unlockAudio,
 } from './game/sfx';
+import { solveFrom } from './game/solver';
 import type { Dir, Level, Pose } from './game/types';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -61,6 +68,17 @@ let timerStarted = false;
 let timerDeadline: number | null = null;
 let plusCell: string | null = null;
 let timerFailed = false;
+
+/** Live floor + morph pad (map-morph levels). */
+let liveTiles: string[] = [];
+let morphCell: string | null = null;
+/** Brief flash after morph (ms timestamp end). */
+let morphFlashUntil = 0;
+
+/** Working level with liveTiles applied for physics / draw. */
+function playLevel(): Level {
+  return levelForTiles(level, liveTiles);
+}
 
 function resize() {
   const wrap = canvas.parentElement!;
@@ -112,6 +130,9 @@ function loadLevel(i: number) {
   timerDeadline = null;
   timerFailed = false;
   plusCell = level.timePlus?.[0] ?? null;
+  liveTiles = [...level.tiles];
+  morphCell = level.mapMorph?.[0] ?? null;
+  morphFlashUntil = 0;
   hideOverlay();
   updateHud();
   saveLastLevelIndex(levelIndex);
@@ -166,6 +187,13 @@ function poseTouches(pose: Pose, cells: Set<string>): boolean {
   return occupied(pose).some((c) => cells.has(cellKey(c.x, c.y)));
 }
 
+/** Timer then morph contacts after a settle (mid bounce or final). */
+function processSettleContacts(p: Pose) {
+  processTimerContacts(p);
+  if (timerFailed) return;
+  processMorphContact(p);
+}
+
 /**
  * After a move settles on `pose` (standing or lying), apply timer contacts once.
  * Order: start → minus → plus (plus relocates after +5).
@@ -173,10 +201,11 @@ function poseTouches(pose: Pose, cells: Set<string>): boolean {
 function processTimerContacts(p: Pose) {
   if (timerFailed) return;
 
-  const starts = timerStartSet(level);
+  const lv = playLevel();
+  const starts = timerStartSet(lv);
   if (!timerStarted && poseTouches(p, starts)) {
     timerStarted = true;
-    timerDeadline = performance.now() + timerDuration(level) * 1000;
+    timerDeadline = performance.now() + timerDuration(lv) * 1000;
   }
 
   if (!timerStarted || timerDeadline == null) {
@@ -184,7 +213,7 @@ function processTimerContacts(p: Pose) {
     return;
   }
 
-  const minus = timeMinusSet(level);
+  const minus = timeMinusSet(lv);
   if (poseTouches(p, minus)) {
     timerDeadline = Math.max(performance.now(), timerDeadline - 5000);
   }
@@ -192,7 +221,8 @@ function processTimerContacts(p: Pose) {
   if (plusCell && poseTouches(p, new Set([plusCell]))) {
     timerDeadline = timerDeadline + 5000;
     const occ = new Set(occupied(p).map((c) => cellKey(c.x, c.y)));
-    const next = pickPlusRelocate(level, plusCell, occ);
+    const extra = morphCell ? [morphCell] : [];
+    const next = pickPlusRelocate(lv, plusCell, occ, extra);
     plusCell = next;
   }
 
@@ -200,6 +230,49 @@ function processTimerContacts(p: Pose) {
   if (remainingSeconds() <= 0) {
     failTimer();
   }
+}
+
+/**
+ * Map-morph: on contact, pick a random other layout still solvable from
+ * current pose, apply it, then relocate the morph pad (prefer far).
+ */
+function processMorphContact(p: Pose) {
+  if (!morphCell || !poseTouches(p, new Set([morphCell]))) return;
+
+  const layouts = allLayouts(level);
+  const candidates: string[][] = [];
+  for (const L of layouts) {
+    if (tilesEqual(L, liveTiles)) continue;
+    const temp = levelForTiles(level, L);
+    if (!temp.tiles.includes(level.target) && !new Set(temp.tiles).has(level.target)) {
+      continue;
+    }
+    const support = supportSet(temp);
+    const soft = softSet(temp);
+    if (!isSupported(p, support, soft)) continue;
+    if (!canPlaceMorph(temp, plusCell ? [plusCell] : [])) continue;
+    const solved = solveFrom(temp, p);
+    if (!solved.solvable) continue;
+    candidates.push(L);
+  }
+
+  if (candidates.length > 0) {
+    const chosen = candidates[Math.floor(Math.random() * candidates.length)]!;
+    liveTiles = [...chosen];
+    morphFlashUntil = performance.now() + 280;
+    playMorph();
+  }
+
+  // Always try to relocate morph after trigger (even if map unchanged).
+  const lv = playLevel();
+  // Drop plus if it vanished with the layout
+  if (plusCell && !new Set(liveTiles).has(plusCell)) {
+    plusCell = null;
+  }
+  const occ = new Set(occupied(p).map((c) => cellKey(c.x, c.y)));
+  const extra = plusCell ? [plusCell] : [];
+  const next = pickMorphRelocate(lv, morphCell, occ, extra);
+  morphCell = next;
 }
 
 function failTimer() {
@@ -219,10 +292,11 @@ function failTimer() {
 function tryMove(dir: Dir) {
   if (busy || timerFailed || !overlay.classList.contains('hidden') || isLevelSelectOpen()) return;
 
-  const result = applyMove(level, pose, dir);
+  const lv = playLevel();
+  const result = applyMove(lv, pose, dir);
   const mid = roll(pose, dir); // landing pose before bounce (for animation)
-  const support = supportSet(level);
-  const soft = softSet(level);
+  const support = supportSet(lv);
+  const soft = softSet(lv);
   const midSupported = isSupported(mid, support, soft);
   const bounceDir = result.bounceDir;
 
@@ -230,7 +304,7 @@ function tryMove(dir: Dir) {
     startAnim('roll', pose, mid, dir, 190, () => {
       if (midSupported && result.bounced && bounceDir) {
         // Mid-landing counts for timer (even if rebound fails)
-        processTimerContacts(mid);
+        processSettleContacts(mid);
         if (timerFailed) return;
         // Landed on bounce then rebound into void / soft collapse
         playBounce();
@@ -241,7 +315,7 @@ function tryMove(dir: Dir) {
         });
       } else {
         // Failed landing still contacts cells occupied by mid
-        processTimerContacts(mid);
+        processSettleContacts(mid);
         if (timerFailed) return;
         const softCollapse =
           mid.ori === 'standing' && soft.has(cellKey(mid.x, mid.y));
@@ -262,13 +336,13 @@ function tryMove(dir: Dir) {
 
   startAnim('roll', pose, mid, dir, 210, () => {
     if (didBounce && bounceDir) {
-      processTimerContacts(mid);
+      processSettleContacts(mid);
       if (timerFailed) return;
       playBounce();
       startAnim('roll', mid, landed, bounceDir, 180, () => {
         pose = landed;
         moves += 1;
-        processTimerContacts(landed);
+        processSettleContacts(landed);
         if (timerFailed) return;
         updateHud();
         finishAfterLand(dir);
@@ -276,7 +350,7 @@ function tryMove(dir: Dir) {
     } else {
       pose = landed;
       moves += 1;
-      processTimerContacts(landed);
+      processSettleContacts(landed);
       if (timerFailed) return;
       updateHud();
       finishAfterLand(dir);
@@ -384,9 +458,11 @@ function tick(now: number) {
   }
 
   const wrap = canvas.parentElement!;
-  drawFrame(ctx, level, pose, anim, wrap.clientWidth, wrap.clientHeight, {
+  drawFrame(ctx, playLevel(), pose, anim, wrap.clientWidth, wrap.clientHeight, {
     plusCell,
+    morphCell,
     timerActive: timerStarted && !timerFailed,
+    morphFlash: performance.now() < morphFlashUntil,
   });
   requestAnimationFrame(tick);
 }

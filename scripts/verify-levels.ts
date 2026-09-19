@@ -1,12 +1,15 @@
 import { LEVELS } from '../src/game/levels.ts';
 import {
   DIRS,
+  allLayouts,
   applyMoveOutcomes,
   bounceFixedMap,
   bounceRandomSet,
   bounceSet,
+  canPlaceMorph,
   isSupported,
   isWin,
+  levelForTiles,
   poseKey,
   roll,
   softSet,
@@ -19,7 +22,7 @@ import {
   timePlusSet,
 } from '../src/game/logic.ts';
 import { tumblingCorners } from '../src/game/render.ts';
-import { solveLevel } from '../src/game/solver.ts';
+import { solveFrom, solveLevel } from '../src/game/solver.ts';
 import type { Dir, Level, Pose } from '../src/game/types.ts';
 
 function aabbOf(pose: Pose) {
@@ -103,6 +106,8 @@ for (let i = 0; i < LEVELS.length; i++) {
   const timeMinuses = timeMinusSet(level);
   const timePluses = timePlusSet(level);
 
+  const mapMorphs = level.mapMorph ?? [];
+
   const specialSets: { name: string; keys: string[] }[] = [
     { name: 'soft', keys: [...soft] },
     { name: 'bounce', keys: [...bounce] },
@@ -112,6 +117,7 @@ for (let i = 0; i < LEVELS.length; i++) {
     { name: 'timerStart', keys: [...timerStarts] },
     { name: 'timeMinus', keys: [...timeMinuses] },
     { name: 'timePlus', keys: [...timePluses] },
+    { name: 'mapMorph', keys: [...mapMorphs] },
   ];
 
   for (const s of level.soft ?? []) {
@@ -156,8 +162,14 @@ for (let i = 0; i < LEVELS.length; i++) {
       failed++;
     }
   }
+  for (const t of mapMorphs) {
+    if (!tiles.has(t)) {
+      console.error(`✗ Level ${i + 1}「${level.name}」: mapMorph ${t} missing from tiles`);
+      failed++;
+    }
+  }
 
-  // Mutual exclusion: soft / bounce* / trap / timerStart / timeMinus / timePlus
+  // Mutual exclusion: soft / bounce* / trap / timer* / timePlus / mapMorph
   const owner = new Map<string, string>();
   for (const { name, keys } of specialSets) {
     for (const k of keys) {
@@ -218,8 +230,66 @@ for (let i = 0; i < LEVELS.length; i++) {
     continue;
   }
 
+  let layoutNote = '';
+  if (level.mapLayouts && level.mapLayouts.length > 0) {
+    const layouts = allLayouts(level);
+    let layoutFail = false;
+    for (let li = 0; li < layouts.length; li++) {
+      const L = layouts[li]!;
+      const temp = levelForTiles(level, L);
+      if (!new Set(L).has(level.target)) {
+        console.error(
+          `✗ Level ${i + 1}「${level.name}」: layout ${li} missing target ${level.target}`,
+        );
+        failed++;
+        layoutFail = true;
+        continue;
+      }
+      if (!isSupported(level.start, supportSet(temp), softSet(temp))) {
+        console.error(
+          `✗ Level ${i + 1}「${level.name}」: layout ${li} does not support start`,
+        );
+        failed++;
+        layoutFail = true;
+        continue;
+      }
+      if (!canPlaceMorph(temp)) {
+        console.error(
+          `✗ Level ${i + 1}「${level.name}」: layout ${li} cannot place morph pad`,
+        );
+        failed++;
+        layoutFail = true;
+        continue;
+      }
+      // Prefer morph cell present in layout when authored in mapMorph
+      for (const m of mapMorphs) {
+        if (!new Set(L).has(m)) {
+          console.error(
+            `✗ Level ${i + 1}「${level.name}」: layout ${li} missing mapMorph cell ${m}`,
+          );
+          failed++;
+          layoutFail = true;
+        }
+      }
+      const lr = solveFrom(temp, level.start);
+      if (!lr.solvable || !lr.moves) {
+        console.error(
+          `✗ Level ${i + 1}「${level.name}」: layout ${li} UNSOLVABLE from start (${lr.nodes} nodes)`,
+        );
+        failed++;
+        layoutFail = true;
+        continue;
+      }
+      if (li > 0) {
+        layoutNote += ` · L${li}:${lr.moves.length}`;
+      }
+    }
+    if (layoutFail) continue;
+    layoutNote = ` · ${layouts.length} layouts` + layoutNote;
+  }
+
   console.log(
-    `✓ Level ${i + 1}「${level.name}」: ${result.moves.length} moves · ${result.nodes} nodes · ${result.moves.join('')}`,
+    `✓ Level ${i + 1}「${level.name}」: ${result.moves.length} moves · ${result.nodes} nodes · ${result.moves.join('')}${layoutNote}`,
   );
 }
 

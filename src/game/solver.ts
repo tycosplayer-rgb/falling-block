@@ -16,16 +16,15 @@ export interface SolveResult {
 }
 
 /**
- * BFS shortest-path solver (soft / bounce / bounceFixed / bounceRandom /
- * trap / hiddenSupport).
+ * BFS shortest-path solver from an arbitrary pose (soft / bounce /
+ * bounceFixed / bounceRandom / trap / hiddenSupport).
  *
  * Random bounce: expands all 4 cardinal outcomes (existential — solvable if
  * some random results allow a win). Gameplay picks one dir at random.
  */
-export function solveLevel(level: Level): SolveResult {
+export function solveFrom(level: Level, start: Pose): SolveResult {
   const support = supportSet(level);
   const soft = softSet(level);
-  const start = level.start;
 
   if (!isSupported(start, support, soft)) {
     return { solvable: false, moves: null, nodes: 0 };
@@ -61,4 +60,9 @@ export function solveLevel(level: Level): SolveResult {
   }
 
   return { solvable: false, moves: null, nodes };
+}
+
+/** BFS from level.start. */
+export function solveLevel(level: Level): SolveResult {
+  return solveFrom(level, level.start);
 }

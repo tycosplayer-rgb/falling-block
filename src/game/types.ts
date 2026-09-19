@@ -74,6 +74,19 @@ export interface Level {
   timePlus?: string[];
   /** Countdown duration in seconds when timer starts (default 45). */
   timerSeconds?: number;
+  /**
+   * Initial map-morph pad cell(s); must be in `tiles` / every layout.
+   * Contact (standing or lying) randomly swaps to another solvable layout
+   * then relocates the pad. Runtime tracks current cell separately.
+   */
+  mapMorph?: string[];
+  /**
+   * Alternate full floor layouts (arrays of "x,y").
+   * `tiles` is layout 0 / starting layout.
+   * Each layout must include target, start-area solids, and at least one
+   * morph-eligible cell (or morph is placed at runtime separately).
+   */
+  mapLayouts?: string[][];
   /** Target hole / goal tile. Must be standing upright on this cell to win. */
   target: string;
   /** Starting pose. */

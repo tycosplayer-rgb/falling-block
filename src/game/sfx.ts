@@ -150,6 +150,15 @@ export function playBounce() {
   });
 }
 
+export function playMorph() {
+  whenReady((c, t0) => {
+    toneAt(c, t0, 480, 0.1, 'sine', { gain: 0.16, slideTo: 720 });
+    toneAt(c, t0 + 0.06, 360, 0.14, 'triangle', { gain: 0.14, slideTo: 240 });
+    toneAt(c, t0 + 0.1, 600, 0.12, 'sine', { gain: 0.1, slideTo: 900 });
+    noiseBurstAt(c, t0, 0.12, 0.08);
+  });
+}
+
 export function playFall() {
   whenReady((c, t0) => {
     toneAt(c, t0, 320, 0.45, 'sawtooth', { gain: 0.14, slideTo: 40 });

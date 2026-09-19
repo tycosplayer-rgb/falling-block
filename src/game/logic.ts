@@ -154,9 +154,11 @@ export function pickPlusRelocate(
   level: Level,
   from: string,
   occupiedKeys: Set<string>,
+  extraBlocked: Iterable<string> = [],
 ): string | null {
   const support = supportSet(level);
   const blocked = plusRelocateBlocked(level);
+  for (const s of extraBlocked) blocked.add(s);
   const candidates: string[] = [];
   for (const t of level.tiles) {
     if (t === from) continue;
@@ -177,6 +179,125 @@ export function pickPlusRelocate(
     }
   }
   return best;
+}
+
+/** All authored layouts: tiles (layout 0) then mapLayouts. */
+export function allLayouts(level: Level): string[][] {
+  return [level.tiles, ...(level.mapLayouts ?? [])];
+}
+
+/** Set-equality of tile lists (order / dupes ignored). */
+export function tilesEqual(a: string[], b: string[]): boolean {
+  const sa = new Set(a);
+  const sb = new Set(b);
+  if (sa.size !== sb.size) return false;
+  for (const t of sa) if (!sb.has(t)) return false;
+  return true;
+}
+
+/**
+ * Clone level with a new floor list; drop specials whose cells are gone.
+ * hiddenSupport is kept (never listed in tiles).
+ */
+export function levelForTiles(base: Level, tiles: string[]): Level {
+  const keys = new Set(tiles);
+  const keep = (arr?: string[]) => {
+    if (!arr) return undefined;
+    const next = arr.filter((k) => keys.has(k));
+    return next.length ? next : undefined;
+  };
+  const keepFixed = (rec?: Record<string, Dir>) => {
+    if (!rec) return undefined;
+    const out: Record<string, Dir> = {};
+    for (const [k, v] of Object.entries(rec)) {
+      if (keys.has(k)) out[k] = v;
+    }
+    return Object.keys(out).length ? out : undefined;
+  };
+  return {
+    ...base,
+    tiles: [...tiles],
+    soft: keep(base.soft),
+    bounce: keep(base.bounce),
+    bounceFixed: keepFixed(base.bounceFixed),
+    bounceRandom: keep(base.bounceRandom),
+    trap: keep(base.trap),
+    timerStart: keep(base.timerStart),
+    timeMinus: keep(base.timeMinus),
+    timePlus: keep(base.timePlus),
+    mapMorph: keep(base.mapMorph),
+  };
+}
+
+/**
+ * Cells that must not host a relocating morph pad.
+ * Target / occupied / current morph filtered by caller.
+ */
+export function morphRelocateBlocked(
+  level: Level,
+  extraBlocked: Iterable<string> = [],
+): Set<string> {
+  const blocked = new Set<string>();
+  for (const s of level.soft ?? []) blocked.add(s);
+  for (const s of level.bounce ?? []) blocked.add(s);
+  for (const s of Object.keys(level.bounceFixed ?? {})) blocked.add(s);
+  for (const s of level.bounceRandom ?? []) blocked.add(s);
+  for (const s of level.trap ?? []) blocked.add(s);
+  for (const s of level.timerStart ?? []) blocked.add(s);
+  for (const s of level.timeMinus ?? []) blocked.add(s);
+  for (const s of level.timePlus ?? []) blocked.add(s);
+  for (const s of extraBlocked) blocked.add(s);
+  return blocked;
+}
+
+/**
+ * Pick a new morph cell: solid support floor, not specials, not occupied,
+ * not current morph, not target. Prefer max Chebyshev distance from `from`.
+ */
+export function pickMorphRelocate(
+  level: Level,
+  from: string,
+  occupiedKeys: Set<string>,
+  extraBlocked: Iterable<string> = [],
+): string | null {
+  const support = supportSet(level);
+  const blocked = morphRelocateBlocked(level, extraBlocked);
+  const candidates: string[] = [];
+  for (const t of level.tiles) {
+    if (t === from) continue;
+    if (t === level.target) continue;
+    if (blocked.has(t)) continue;
+    if (!support.has(t)) continue;
+    if (occupiedKeys.has(t)) continue;
+    candidates.push(t);
+  }
+  if (candidates.length === 0) return null;
+  let best = candidates[0]!;
+  let bestDist = -1;
+  for (const c of candidates) {
+    const d = chebyshev(from, c);
+    if (d > bestDist) {
+      bestDist = d;
+      best = c;
+    }
+  }
+  return best;
+}
+
+/** True if morph pad can be placed somewhere on this level's tiles. */
+export function canPlaceMorph(
+  level: Level,
+  extraBlocked: Iterable<string> = [],
+): boolean {
+  const support = supportSet(level);
+  const blocked = morphRelocateBlocked(level, extraBlocked);
+  for (const t of level.tiles) {
+    if (t === level.target) continue;
+    if (blocked.has(t)) continue;
+    if (!support.has(t)) continue;
+    return true;
+  }
+  return false;
 }
 
 /**
